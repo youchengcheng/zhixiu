@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="默认头像">
+  <!-- 图片占位：用户头像缺省图，配合 LetterAvatar 作为头像加载失败兜底 -->
+  <circle cx="48" cy="48" r="44" fill="#f6f7f9" stroke="#e3e6ea" stroke-width="2" />
+  <circle cx="48" cy="38" r="14" fill="#d2d6dc" />
+  <path d="M20 82a28 28 0 0 1 56 0z" fill="#d2d6dc" />
+</svg>

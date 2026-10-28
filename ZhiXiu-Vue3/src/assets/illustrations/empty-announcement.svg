@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" width="200" height="140" role="img" aria-label="暂无公告">
+  <!-- 暂无公告空状态插画：铃铛 + 声波，冷灰为主、主色点缀 -->
+  <ellipse cx="100" cy="122" rx="52" ry="9" fill="#eef0f3" />
+
+  <!-- 铃铛主体 -->
+  <path
+    d="M74 92c0-22 6-34 6-44a20 20 0 0 1 40 0c0 10 6 22 6 44z"
+    fill="#ffffff"
+    stroke="#d2d6dc"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  <!-- 铃顶 -->
+  <rect x="94" y="18" width="12" height="10" rx="5" fill="#e3e6ea" stroke="#d2d6dc" stroke-width="2" />
+  <!-- 铃锤 -->
+  <path d="M92 92a8 8 0 0 0 16 0z" fill="#e3e6ea" stroke="#d2d6dc" stroke-width="2" stroke-linejoin="round" />
+
+  <!-- 主色点缀：声波 -->
+  <path d="M136 44a26 26 0 0 1 0 34" fill="none" stroke="#86b2aa" stroke-width="2.4" stroke-linecap="round" />
+  <path d="M144 34a40 40 0 0 1 0 54" fill="none" stroke="#d7e7e4" stroke-width="2.4" stroke-linecap="round" />
+</svg>

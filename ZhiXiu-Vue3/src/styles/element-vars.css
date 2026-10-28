@@ -1,0 +1,154 @@
+/* ============================================================================
+   Element Plus 运行时变量 → 我们的语义变量（色值唯一来源）
+   light-3/5/7/8/9 跟随当前主题表面混色，dark-2 引用语义状态色，
+   避免开启 SCSS 主题编译（theme-chalk 的 @import 会产生弃用警告，影响零警告构建）
+   ========================================================================== */
+
+:root {
+  /* 主色 */
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: color-mix(in srgb, var(--color-primary) 70%, var(--color-bg-card));
+  --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, var(--color-bg-card));
+  --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, var(--color-bg-card));
+  --el-color-primary-light-8: color-mix(in srgb, var(--color-primary) 20%, var(--color-bg-card));
+  --el-color-primary-light-9: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-card));
+  --el-color-primary-dark-2: var(--color-primary-active);
+
+  /* 成功 */
+  --el-color-success: var(--color-success);
+  --el-color-success-light-3: color-mix(in srgb, var(--color-success) 70%, var(--color-bg-card));
+  --el-color-success-light-5: color-mix(in srgb, var(--color-success) 50%, var(--color-bg-card));
+  --el-color-success-light-7: color-mix(in srgb, var(--color-success) 30%, var(--color-bg-card));
+  --el-color-success-light-8: color-mix(in srgb, var(--color-success) 20%, var(--color-bg-card));
+  --el-color-success-light-9: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-card));
+  --el-color-success-dark-2: var(--color-success-strong);
+
+  /* 警告 */
+  --el-color-warning: var(--color-warning);
+  --el-color-warning-light-3: color-mix(in srgb, var(--color-warning) 70%, var(--color-bg-card));
+  --el-color-warning-light-5: color-mix(in srgb, var(--color-warning) 50%, var(--color-bg-card));
+  --el-color-warning-light-7: color-mix(in srgb, var(--color-warning) 30%, var(--color-bg-card));
+  --el-color-warning-light-8: color-mix(in srgb, var(--color-warning) 20%, var(--color-bg-card));
+  --el-color-warning-light-9: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-card));
+  --el-color-warning-dark-2: var(--color-warning-strong);
+
+  /* 危险 */
+  --el-color-danger: var(--color-danger);
+  --el-color-danger-light-3: color-mix(in srgb, var(--color-danger) 70%, var(--color-bg-card));
+  --el-color-danger-light-5: color-mix(in srgb, var(--color-danger) 50%, var(--color-bg-card));
+  --el-color-danger-light-7: color-mix(in srgb, var(--color-danger) 30%, var(--color-bg-card));
+  --el-color-danger-light-8: color-mix(in srgb, var(--color-danger) 20%, var(--color-bg-card));
+  --el-color-danger-light-9: color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-card));
+  --el-color-danger-dark-2: var(--color-danger-strong);
+
+  /* 信息 */
+  --el-color-info: var(--color-info);
+  --el-color-info-light-3: color-mix(in srgb, var(--color-info) 70%, var(--color-bg-card));
+  --el-color-info-light-5: color-mix(in srgb, var(--color-info) 50%, var(--color-bg-card));
+  --el-color-info-light-7: color-mix(in srgb, var(--color-info) 30%, var(--color-bg-card));
+  --el-color-info-light-8: color-mix(in srgb, var(--color-info) 20%, var(--color-bg-card));
+  --el-color-info-light-9: color-mix(in srgb, var(--color-info) 10%, var(--color-bg-card));
+  --el-color-info-dark-2: var(--color-info-strong);
+
+  /* 文字 */
+  --el-text-color-primary: var(--color-text-1);
+  --el-text-color-regular: var(--color-text-2);
+  --el-text-color-secondary: var(--color-text-3);
+  --el-text-color-placeholder: var(--color-text-3);
+  --el-text-color-disabled: var(--color-text-disabled);
+  --el-text-color-primary-hover: var(--color-primary);
+
+  /* 边框 */
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-divider);
+  --el-border-color-lighter: var(--color-divider);
+  --el-border-color-extra-light: var(--color-bg-sunken);
+  --el-border-color-dark: var(--color-border-strong);
+  --el-border-color-darker: var(--p-neutral-400);
+  /* 悬停统一加深到中性强边，主色只留给聚焦与选中，避免指针扫过时一片绿 */
+  --el-border-color-hover: var(--color-border-strong);
+
+  /* 填充与背景 */
+  --el-fill-color: var(--color-bg-sunken);
+  --el-fill-color-light: var(--color-bg-sunken);
+  --el-fill-color-lighter: var(--p-neutral-25);
+  --el-fill-color-extra-light: var(--p-neutral-25);
+  --el-fill-color-dark: var(--p-neutral-200);
+  --el-fill-color-darker: var(--p-neutral-300);
+  --el-fill-color-blank: var(--color-bg-card);
+  --el-bg-color: var(--color-bg-card);
+  --el-bg-color-page: var(--color-bg-page);
+  --el-bg-color-overlay: var(--color-bg-elevated);
+
+  /* 遮罩与禁用 */
+  --el-mask-color: var(--color-bg-mask);
+  --el-mask-color-extra-light: rgba(21, 24, 29, 0.2);
+  --el-disabled-bg-color: var(--color-bg-sunken);
+  --el-disabled-text-color: var(--color-text-disabled);
+  --el-disabled-border-color: var(--color-border);
+
+  /* 阴影 */
+  --el-box-shadow: var(--shadow-md);
+  --el-box-shadow-light: var(--shadow-sm);
+  --el-box-shadow-lighter: var(--shadow-xs);
+  --el-box-shadow-dark: var(--shadow-lg);
+
+  /* 字体与圆角 */
+  --el-font-family: var(--font-sans);
+  --el-font-size-base: var(--fs-body);
+  --el-font-size-small: var(--fs-sm);
+  --el-font-size-extra-small: var(--fs-xs);
+  --el-border-radius-base: var(--radius-md);
+  --el-border-radius-small: var(--radius-sm);
+  --el-border-radius-round: var(--radius-full);
+  --el-border-radius-circle: 50%;
+
+  /* 动效 */
+  --el-transition-duration: var(--dur-base);
+  --el-transition-duration-fast: var(--dur-fast);
+  --el-transition-duration-faster: var(--dur-fast);
+  --el-transition-function-ease-in-out-bezier: var(--ease-in-out);
+  --el-transition-function-fast-bezier: var(--ease-out);
+
+  /* 表格：表头透明、去斑马纹、hover 走 sunk 底 */
+  --el-table-border-color: var(--color-divider);
+  --el-table-border: none;
+  --el-table-bg-color: var(--color-bg-card);
+  --el-table-tr-bg-color: var(--color-bg-card);
+  --el-table-header-bg-color: transparent;
+  --el-table-header-text-color: var(--color-text-2);
+  --el-table-text-color: var(--color-text-1);
+  --el-table-row-hover-bg-color: var(--color-bg-sunken);
+  --el-table-current-row-bg-color: var(--color-primary-soft);
+  --el-table-expanded-cell-bg-color: var(--color-bg-card);
+  --el-table-fixed-box-shadow: var(--shadow-sm);
+
+  /* 菜单 */
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--color-text-2);
+  --el-menu-active-color: var(--color-primary);
+  --el-menu-hover-bg-color: var(--color-bg-sunken);
+  --el-menu-hover-text-color: var(--color-text-1);
+  --el-menu-item-height: 42px;
+  --el-menu-border-color: transparent;
+  --el-menu-level-padding: 0;
+
+  /* 其它组件微调 */
+  --el-card-border-radius: var(--radius-lg);
+  --el-card-border-color: var(--color-border);
+  --el-card-padding: var(--space-5);
+  --el-dialog-border-radius: var(--radius-xl);
+  --el-drawer-padding-primary: var(--space-5);
+  --el-tag-border-radius: var(--radius-sm);
+  --el-popover-border-radius: var(--radius-lg);
+  --el-input-height: 36px;
+  --el-component-size: 36px;
+  --el-component-size-small: 30px;
+  --el-component-size-large: 42px;
+}
+
+/* Element Plus 默认的黑色纯黑与外部字体声明收敛 */
+:root {
+  --el-color-black: var(--p-neutral-950);
+  --el-color-white: var(--p-neutral-0);
+}

@@ -1,0 +1,24 @@
+# ============================================================================
+#  本机密钥覆盖层模板 —— 复制为同目录下的 application-local.yml（已被 .gitignore 忽略）
+#  放在项目根目录：mvn spring-boot:run 与 java -jar 的默认工作目录都能读到，且不会进 jar
+#  这是本机唯一的明文配置存放处，禁止提交
+# ============================================================================
+spring:
+  datasource:
+    # 只覆盖主配置中的数据库密码；主机/端口/库名沿用 application.yml 与环境变量
+    password: 替换为本机 MySQL 密码
+
+jwt:
+  # ≥32 字符的随机串，可用 openssl rand -base64 48 生成；服务端用该密钥签发和校验 JWT
+  secret: 替换为随机密钥
+
+minio:
+  # 需与 MinIO 容器启动参数 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD 保持一致
+  access-key: 替换为本机 MinIO Access Key
+  secret-key: 替换为本机 MinIO Secret Key
+
+# AI Key 暂缺时留空，并把 repair.ai.enabled 置 false
+# 二者任一不满足（开关关闭或 Key 为空）时，SpringAiConfig 不装配 AI Bean，其余功能正常
+repair:
+  ai-model:
+    api-key: ""

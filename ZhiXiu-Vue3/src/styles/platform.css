@@ -1,0 +1,340 @@
+/* 智修云产品界面：社区入口与操作工作台共用一套颜色与圆角。
+   16px 用于表面，8px 用于控件，6px 用于状态标签。 */
+.app-shell.app-shell--owner .layout-page {
+  max-width: 1280px;
+  padding: 36px 40px 48px;
+  gap: 28px;
+}
+
+.app-shell .app-shell__account-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-3);
+}
+
+.app-shell .brand--service {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  margin-right: 40px;
+}
+
+.app-shell .top-bar--service {
+  padding-inline: max(32px, calc((100vw - 1200px) / 2));
+  gap: 16px;
+}
+
+.service-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+}
+
+.service-nav__item,
+.service-nav__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  align-self: center;
+  padding-inline: 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-2);
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.service-nav__item:hover,
+.service-nav__more:hover,
+.service-nav .is-active {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.service-nav .is-active { font-weight: 600; }
+.service-nav > .el-dropdown { align-self: center; }
+
+.app-shell.app-shell--operations .top-bar { background: var(--color-bg-page); }
+.app-shell.app-shell--operations .page-header { padding-bottom: 4px; }
+.app-shell.app-shell--operations .side-nav .nav-item { min-height: 46px; }
+.app-shell.app-shell--operations .brand__desc { font-size: 11px; }
+
+/* 业主首页：服务主入口、进度条带、工单与社区信息。 */
+.app-shell .owner-home .home-welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  min-height: 284px;
+  overflow: hidden;
+  background: var(--color-primary-soft);
+  border: 0;
+}
+
+.app-shell .home-welcome__copy {
+  padding: 36px 40px;
+  align-self: center;
+}
+
+.app-shell .home-welcome__copy h2 {
+  font-size: clamp(27px, 2.5vw, 36px);
+  line-height: 1.5;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+}
+
+.app-shell .home-welcome__copy p {
+  margin-top: 10px;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+
+.app-shell .home-welcome__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.app-shell .home-welcome__actions .el-button { height: 44px; margin: 0; }
+.app-shell .owner-home .home-welcome__image { width: 100%; height: 284px; min-height: 284px; object-fit: cover; }
+
+.app-shell .owner-home .home-metrics {
+  gap: 0;
+  padding-block: 4px;
+}
+
+.app-shell .home-metrics .stat-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 12px 28px;
+}
+
+.app-shell .home-metrics .stat-card:first-child { padding-left: 0; }
+.app-shell .home-metrics .stat-card + .stat-card { border-left: 1px solid var(--color-border); }
+.app-shell .home-metrics .stat-card__value { margin-top: 10px; font-size: 32px; }
+.app-shell .home-metrics .stat-card__icon { display: none; }
+.app-shell .home-metrics .stat-card__hint { margin-top: 6px; }
+
+.app-shell .owner-home .home-overview {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  height: clamp(560px, 70dvh, 640px);
+}
+
+.app-shell .home-community { display: flex; flex-direction: column; gap: 24px; min-width: 0; min-height: 0; }
+.app-shell .home-property { flex: 0 0 auto; background: var(--color-primary-soft); }
+.app-shell .home-orders, .app-shell .home-announcements { min-height: 0; overflow: hidden; }
+.app-shell .home-announcements { flex: 1 1 0; }
+.app-shell .home-orders .section-card__head, .app-shell .home-announcements .section-card__head { flex: 0 0 auto; }
+.app-shell .home-orders .section-card__body, .app-shell .home-announcements .section-card__body {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.app-shell .owner-home .home-panel-scroll {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+}
+.app-shell .home-property .section-card__body { padding-top: 12px; }
+.app-shell .home-property p { color: var(--color-text-2); line-height: 1.8; overflow-wrap: anywhere; }
+.app-shell .home-property .el-button { margin-top: 12px; padding-left: 0; }
+.app-shell .owner-home .home-list__item { padding-block: 18px; }
+.app-shell .owner-home .home-list__title { font-size: 15px; }
+.app-shell .owner-home .home-list__meta { margin-top: 4px; flex-wrap: wrap; }
+
+/* 工作台把继续处理的工单放在前面，接单池在旁边。 */
+.app-shell .worker-workbench .workbench-status { padding: 26px 28px; border: 0; }
+.app-shell .worker-workbench .workbench-status__title { font-size: 20px; font-weight: 600; }
+.app-shell .worker-workbench .workbench-status__desc { margin-top: 6px; }
+.app-shell .worker-workbench .workbench-tasks { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+.app-shell .workbench-tasks .workbench-active { grid-column: 1; grid-row: 1; }
+.app-shell .workbench-tasks > .section-card:first-child { grid-column: 2; grid-row: 1; }
+.app-shell .worker-workbench .wb-list__item { padding-block: 20px; }
+.app-shell .worker-workbench .wb-list__title { font-size: 15px; }
+.app-shell .worker-workbench .wb-list__meta { margin-top: 5px; flex-wrap: wrap; }
+
+.app-shell .worker-pending .pending-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.app-shell .worker-pending .pending-card { padding: 24px; border-color: var(--color-border); border-radius: var(--radius-xl); }
+.app-shell .worker-pending .pending-card__title { font-size: 18px; line-height: 1.6; }
+.app-shell .worker-pending .pending-card__desc { margin-top: 12px; }
+.app-shell .worker-pending .pending-card__meta { padding-block: 18px; margin-top: 18px; border-top: 1px solid var(--color-divider); }
+.app-shell .worker-pending .pending-card__foot { border-top: 0; padding-top: 4px; }
+.app-shell .worker-pending .pending-card__foot .el-button { min-width: 96px; height: 40px; }
+.app-shell .worker-pending .pending-card__meta dd { overflow-wrap: anywhere; }
+
+/* 管理看板：总量、效率、趋势各自形成清楚的阅读区域。 */
+.app-shell .admin-dashboard .kpi-panel { border: 0; background: var(--color-primary-soft); }
+.app-shell .admin-dashboard .kpi-panel .stat-card { padding: 28px; }
+.app-shell .admin-dashboard .kpi-panel .stat-card__value { font-size: 36px; }
+.app-shell .admin-dashboard .dashboard-efficiency { gap: 0; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-xl); }
+.app-shell .dashboard-efficiency .stat-card { background: transparent; border: 0; border-radius: 0; padding: 20px 24px; }
+.app-shell .dashboard-efficiency .stat-card + .stat-card { border-left: 1px solid var(--color-divider); }
+.app-shell .dashboard-efficiency .stat-card__value { font-size: 24px; }
+.app-shell .dashboard-efficiency .stat-card__icon { display: none; }
+.app-shell .admin-dashboard .dashboard-charts { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+
+/* 查询区和表格作为一个工作表面，保持长列表易扫读。 */
+.app-shell .page-filter {
+  background: transparent;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.app-shell .el-table td.el-table__cell { padding-block: 16px; }
+.app-shell .el-table th.el-table__cell { background: var(--color-bg-page); padding-block: 12px; font-weight: 500; }
+.app-shell .page-pager { padding-block: 20px; }
+.app-shell .page-header__back { min-height: 32px; }
+.app-shell .el-button:not(.is-disabled):active { transform: scale(0.98); }
+
+/* 报修：左侧说明、右侧一次性表单，小屏先呈现表单。 */
+.app-shell .repair-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 40px; align-items: start; }
+.app-shell .repair-guide {
+  position: sticky;
+  top: 36px;
+  /* 扣除页面上下留白，滚到底部时说明栏仍留在原位。 */
+  max-height: calc(100dvh - var(--layout-top-height) - 84px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.app-shell .repair-guide__steps { padding-top: 48px; }
+.app-shell .repair-guide h2 { font-size: 22px; letter-spacing: -0.03em; font-weight: 600; }
+.app-shell .repair-guide__steps > p { color: var(--color-text-2); margin-top: 14px; line-height: 1.9; }
+.app-shell .repair-guide ol { display: flex; flex-direction: column; list-style: none; counter-reset: repair-step; margin-top: 32px; gap: 28px; }
+.app-shell .repair-guide li { counter-increment: repair-step; position: relative; padding-left: 38px; }
+.app-shell .repair-guide li::before { content: counter(repair-step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--color-primary-border); border-radius: var(--radius-full); color: var(--color-primary); font-family: var(--font-mono); }
+.app-shell .repair-guide strong { display: block; font-weight: 500; }
+.app-shell .repair-guide li span { display: block; margin-top: 5px; color: var(--color-text-3); font-size: 13px; line-height: 1.7; }
+.app-shell .repair-layout .section-card__body { padding: 28px; }
+.app-shell .repair-layout .order-form > .grid { gap: 20px; }
+.app-shell .repair-layout .order-form__footer { padding-top: 20px; border-top: 1px solid var(--color-divider); }
+.app-shell .repair-layout .order-form__footer .el-button { height: 44px; min-width: 100px; }
+
+.app-shell .detail-page :is(.detail-grid, .wdetail-grid, .adetail-grid) { padding: 20px; gap: 22px; }
+.app-shell .detail-page :is(.detail-grid, .wdetail-grid, .adetail-grid) dt { margin-bottom: 8px; }
+.app-shell .order-detail-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.order-detail-main, .order-detail-side { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.app-shell .order-detail-side .grid-2 { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.app-shell .order-detail-side .section-card:first-child { background: var(--color-primary-soft); }
+
+/* 智能助手：历史是工具栏，主要空间让给对话。 */
+.app-shell .ai-page .ai-layout { grid-template-columns: 248px minmax(0, 1fr); gap: 20px; }
+.app-shell .ai-page .ai-layout.has-draft { grid-template-columns: 220px minmax(0, 1fr) 340px; }
+.app-shell .ai-page .ai-sessions { background: transparent; border: 0; }
+.app-shell .ai-page .ai-brand { padding: 12px 12px 24px; background: transparent; border: 0; }
+.app-shell .ai-page .ai-brand__title { font-size: 22px; }
+.app-shell .ai-page .ai-brand__desc { margin-top: 12px; line-height: 1.8; }
+.app-shell .ai-page .ai-sessions .ai-panel__head { border: 0; padding-inline: 12px; }
+.app-shell .ai-page .ai-sessions__body { padding-inline: 0; }
+.app-shell .ai-page .ai-session { border: 0; border-radius: var(--radius-md); }
+.app-shell .ai-page .ai-session.is-active { background: var(--color-primary-soft); }
+.app-shell .ai-page .ai-chat { box-shadow: var(--shadow-sm); }
+.app-shell .ai-page .ai-chat__list { padding: 28px; background: var(--color-bg-card); }
+.app-shell .ai-page .ai-composer { background: var(--color-bg-card); padding: 20px 24px; }
+.app-shell .ai-page .ai-composer__row { padding: 8px; background: var(--color-bg-page); border-radius: var(--radius-lg); }
+
+/* 认证页：拆开原来包裹全部内容的大卡片，让故事和表单独立。 */
+.auth-page__header { max-width: 1280px; border-bottom: 1px solid var(--auth-border); }
+.auth-page__body { max-width: 1160px; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 64px; padding: 40px 0; background: transparent; border: 0; box-shadow: none; border-radius: 0; min-height: 660px; align-items: center; }
+.auth-story { padding: 0; background: transparent; border-radius: 0; }
+.auth-story__title { font-size: clamp(32px, 3vw, 44px); line-height: 1.5; }
+.auth-story__visual { min-height: 280px; margin-top: 32px; flex: 0 0 auto; }
+.auth-story__features { padding-top: 4px; color: var(--auth-muted); }
+.auth-panel { padding: 40px; border: 1px solid var(--auth-border); border-radius: var(--radius-xl); background: var(--auth-surface); box-shadow: var(--auth-shadow); }
+.auth-page--register .auth-panel { padding: 28px 32px; }
+.auth-page--register .auth-page__body { min-height: 750px; align-items: start; }
+.auth-page--register .auth-story { position: sticky; top: 32px; padding-top: 24px; }
+.auth-page__footer { text-align: left; max-width: 1280px; }
+
+.error-page__inner { width: min(640px, 100%); padding: 36px; }
+.error-page__brand { display: block; color: var(--color-primary); font-weight: 600; }
+.error-page__code { margin-top: 28px; text-align: center; font-size: clamp(64px, 14vw, 120px); font-family: var(--font-mono); line-height: 1.2; letter-spacing: -0.08em; color: var(--color-primary); }
+
+@media (max-width: 1279px) {
+  .app-shell .brand--service { margin-right: 16px; }
+  .app-shell .top-bar--service { padding-inline: 24px; gap: 12px; }
+  .service-nav { gap: 0; }
+  .service-nav__item, .service-nav__more { padding-inline: 10px; }
+  .app-shell .ai-page .ai-layout.has-draft { grid-template-columns: 200px minmax(0, 1fr); }
+  .app-shell .ai-page .ai-draft { grid-column: 2; }
+  .app-shell .home-metrics .stat-card:nth-child(3) { border-left: 0; padding-left: 0; }
+  .app-shell .home-metrics .stat-card { padding-block: 16px; }
+  .app-shell .dashboard-efficiency .stat-card:nth-child(3) { border-left: 0; }
+  .auth-page__body { gap: 40px; }
+}
+
+@media (max-width: 1023px) {
+  .app-shell .order-detail-layout { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .repair-layout { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .repair-guide { position: static; max-height: none; overflow: visible; }
+  .app-shell .repair-guide__steps { display: none; }
+  .auth-page__body { gap: 28px; }
+  .auth-story__title { font-size: 30px; }
+  .auth-panel, .auth-page--register .auth-panel { padding: 28px 24px; }
+}
+
+@media (max-width: 767px) {
+  .app-shell .worker-pending .pending-card__meta { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .app-shell.app-shell--owner .layout-page { padding: 24px 16px 32px; gap: 24px; }
+  .app-shell .owner-home .home-welcome { grid-template-columns: minmax(0, 1fr); min-height: auto; }
+  .app-shell .home-welcome__copy { padding: 26px 24px; }
+  .app-shell .home-welcome__copy h2 { font-size: 26px; }
+  .app-shell .home-welcome__copy p { font-size: 13px; }
+  .app-shell .owner-home .home-welcome__image { display: none; }
+  .app-shell .home-welcome__actions { gap: 8px; margin-top: 22px; }
+  .app-shell .home-welcome__actions .el-button { padding-inline: 12px; font-size: 13px; }
+  .app-shell .owner-home .home-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .owner-home .home-metrics .stat-card { padding: 12px 16px; }
+  .app-shell .owner-home .home-metrics .stat-card:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .app-shell .owner-home .home-metrics .stat-card__value { font-size: 28px; }
+  .app-shell .owner-home .home-overview, .worker-workbench .workbench-tasks, .admin-dashboard .dashboard-charts, .worker-pending .pending-list { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .owner-home .home-overview { height: auto; grid-template-rows: auto; }
+  .app-shell .owner-home .home-orders, .app-shell .owner-home .home-announcements { height: clamp(320px, 60dvh, 480px); flex: 0 0 auto; }
+  .app-shell .workbench-tasks > .section-card, .workbench-tasks .workbench-active, .workbench-tasks > .section-card:first-child { grid-column: auto; grid-row: auto; }
+  .app-shell .workbench-tasks .workbench-active { order: -1; }
+  .app-shell .worker-workbench .workbench-status { padding: 20px; }
+  .app-shell .worker-workbench .workbench-status__title { font-size: 17px; }
+  .app-shell .worker-pending .pending-card { padding: 20px; }
+  .app-shell .admin-dashboard .kpi-panel .stat-card { padding: 20px; }
+  .app-shell .admin-dashboard .kpi-panel .stat-card__value { font-size: 28px; }
+  .app-shell .admin-dashboard .dashboard-efficiency { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .dashboard-efficiency .stat-card:nth-child(odd) { border-left: 0; }
+  .app-shell .page-filter { padding: 16px; }
+  .app-shell .el-table td.el-table__cell { padding-block: 14px; }
+  .app-shell .repair-layout .section-card__body { padding: 20px 16px; }
+  .app-shell .repair-layout .order-form > .grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .app-shell .ai-page .ai-layout, .app-shell .ai-page .ai-layout.has-draft { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .app-shell .ai-page .ai-draft { grid-column: auto; }
+  .app-shell .ai-page .ai-chat__list { padding: 16px; }
+  .app-shell .ai-page .ai-composer { padding: 16px; }
+  .app-shell .ai-page .ai-brand { padding: 0 0 16px; }
+  .auth-page__body, .auth-page--register .auth-page__body { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 24px; padding: 24px 0 0; }
+  .auth-story, .auth-page--register .auth-story { position: static; padding: 0 8px; }
+  .auth-story__title { font-size: 26px; }
+  .auth-panel, .auth-page--owner .auth-panel, .auth-page--worker .auth-panel, .auth-page--register .auth-panel { padding: 28px 24px; }
+  .auth-page__footer { text-align: center; }
+  .error-page__inner { padding: 24px 16px; }
+}
+
+@media (max-width: 359px) {
+  .app-shell .home-welcome__copy { padding: 24px 18px; }
+  .app-shell .home-welcome__copy h2 { font-size: 23px; }
+  .app-shell .home-welcome__actions .el-button { width: 100%; }
+  .app-shell .home-metrics .stat-card__hint { font-size: 11px; }
+  .auth-panel, .auth-page--register .auth-panel { padding-inline: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .el-button:not(.is-disabled):active { transform: none; }
+}

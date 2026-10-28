@@ -1,0 +1,288 @@
+/* ============================================================================
+   设计令牌：基础层 --p-*  →  语义层 --color-*  →  组件只引用语义层
+   规则：任何 .vue 文件内禁止出现十六进制色值，一律 var(--xxx)
+   ========================================================================== */
+
+:root {
+  /* ---------- 基础层：与认证入口同源的灰绿 ---------- */
+  --p-neutral-0: #ffffff;
+  --p-neutral-25: #fafcfc;
+  --p-neutral-50: #f5f7f8;
+  --p-neutral-100: #edf2f2;
+  --p-neutral-200: #dce4e4;
+  --p-neutral-300: #b9c8c8;
+  --p-neutral-400: #91a2a2;
+  --p-neutral-500: #607171;
+  --p-neutral-600: #536767;
+  --p-neutral-700: #425959;
+  --p-neutral-800: #304b47;
+  --p-neutral-900: #203a35;
+  --p-neutral-950: #172221;
+
+  /* ---------- 基础层：主色（冷灰蓝绿） ---------- */
+  --p-brand-50: #edf4f3;
+  --p-brand-100: #d7e7e4;
+  --p-brand-200: #b0cfc9;
+  --p-brand-300: #86b2aa;
+  --p-brand-400: #5c948b;
+  --p-brand-500: #3b776d;
+  --p-brand-600: #2c5f57;
+  --p-brand-700: #244e48;
+  --p-brand-800: #1c3d38;
+  --p-brand-900: #152c29;
+
+  /* ---------- 基础层：AI 强调色（低饱和冷青） ---------- */
+  --p-ai-50: #ebf5f8;
+  --p-ai-100: #d2e8ef;
+  --p-ai-200: #a6d1de;
+  --p-ai-300: #76b7c9;
+  --p-ai-400: #4a9aad;
+  --p-ai-500: #2c7f95;
+  --p-ai-600: #226779;
+  --p-ai-700: #1c5362;
+  --p-ai-800: #16414d;
+  --p-ai-900: #112f38;
+
+  /* ---------- 基础层：状态语义色（soft / border / main / deep） ---------- */
+  --p-success-soft: #edf6f0;
+  --p-success-border: #d6ebdd;
+  --p-success: #3e8b5b;
+  --p-success-deep: #33724b;
+
+  --p-warning-soft: #fbf4e6;
+  --p-warning-border: #f5e4c0;
+  --p-warning: #b9821a;
+  --p-warning-deep: #8c6114;
+
+  --p-danger-soft: #fbeeed;
+  --p-danger-border: #f5d6d4;
+  --p-danger: #bc4740;
+  --p-danger-deep: #9c3a34;
+
+  --p-info-soft: #edf2f9;
+  --p-info-border: #d5e1f1;
+  --p-info: #3c6ca5;
+  --p-info-deep: #325b8b;
+
+  /* ============ 语义层 ============ */
+
+  /* 背景与表面 */
+  --color-bg-page: var(--p-neutral-50);
+  --color-bg-card: var(--p-neutral-0);
+  --color-bg-sunken: var(--p-neutral-100);
+  --color-bg-elevated: var(--p-neutral-0);
+  --color-bg-mask: rgba(21, 24, 29, 0.45);
+  --color-bg-hover: var(--p-neutral-100);
+  --color-bg-inverse: var(--p-neutral-900);
+
+  /* 边框与分隔 */
+  --color-border: var(--p-neutral-200);
+  --color-border-strong: var(--p-neutral-300);
+  --color-divider: var(--p-neutral-100);
+
+  /* 文字 */
+  --color-text-1: var(--p-neutral-900);
+  --color-text-2: var(--p-neutral-600);
+  --color-text-3: var(--p-neutral-500);
+  --color-text-disabled: var(--p-neutral-400);
+  --color-text-inverse: var(--p-neutral-0);
+
+  /* 主色轨道：仅用于导航选中、主按钮、链接、焦点 */
+  --color-primary: var(--p-brand-600);
+  --color-primary-hover: var(--p-brand-700);
+  --color-primary-active: var(--p-brand-700);
+  --color-primary-soft: var(--p-neutral-100);
+  --color-primary-border: var(--p-brand-200);
+  --color-link: var(--p-brand-600);
+  --color-on-primary: #f7fbf9;
+  --color-bg-sidebar: #edf2f2;
+
+  /* AI 表面复用主色：入口、对话、草稿与知识引用 */
+  --color-ai: var(--color-primary);
+  --color-ai-hover: var(--color-primary-hover);
+  --color-ai-soft: var(--color-primary-soft);
+  --color-ai-border: var(--color-primary-border);
+  --color-ai-canvas: var(--color-bg-page);
+
+  /* 状态轨 */
+  --color-success: var(--p-success);
+  --color-success-soft: var(--p-success-soft);
+  --color-warning: var(--p-warning);
+  --color-warning-soft: var(--p-warning-soft);
+  --color-danger: var(--p-danger);
+  --color-danger-soft: var(--p-danger-soft);
+  --color-info: var(--p-info);
+  --color-info-soft: var(--p-info-soft);
+
+  /* 状态轨：软底上的深色文字，保证小字号标签 ≥4.5:1 对比度 */
+  --color-success-strong: var(--p-success-deep);
+  --color-warning-strong: var(--p-warning-deep);
+  --color-danger-strong: var(--p-danger-deep);
+  --color-info-strong: var(--p-info-deep);
+  --color-ai-strong: var(--color-primary);
+
+  /* 场景专属（全站唯一允许非浅色的三处） */
+  --login-bg: linear-gradient(160deg, #22303a 0%, #1b2b2e 55%, #152c29 100%);
+  --login-glass-bg: rgba(255, 255, 255, 0.1);
+  --login-glass-border: rgba(255, 255, 255, 0.14);
+  --login-text-1: #f2f5f6;
+  --login-text-2: rgba(242, 245, 246, 0.66);
+  --login-text-3: rgba(242, 245, 246, 0.42);
+  --login-rule: rgba(255, 255, 255, 0.18);
+  --kpi-panel-bg: #1b2127;
+  --kpi-panel-border: rgba(255, 255, 255, 0.08);
+  --kpi-text-1: #f2f5f6;
+  --kpi-text-2: rgba(242, 245, 246, 0.6);
+
+  /* ---------- 字体 ---------- */
+  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
+  --font-mono: 'Geist Mono Variable', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+
+  --fs-display: 28px;
+  --fs-h1: 22px;
+  --fs-h2: 18px;
+  --fs-h3: 16px;
+  --fs-body: 14px;
+  --fs-sm: 13px;
+  --fs-xs: 12px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --lh-tight: 1.25;
+  --lh-base: 1.6;
+  --lh-loose: 1.8;
+
+  /* ---------- 间距（8pt 刻度） ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+  --space-9: 64px;
+
+  /* ---------- 圆角 ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---------- 阴影（无发光、无彩色阴影） ---------- */
+  --shadow-xs: 0 1px 2px rgba(21, 24, 29, 0.04);
+  --shadow-sm: 0 2px 8px rgba(36, 78, 65, 0.025);
+  --shadow-md: 0 6px 18px rgba(36, 78, 65, 0.06);
+  --shadow-lg: 0 12px 36px rgba(36, 78, 65, 0.09);
+  --shadow-hover: 0 6px 16px rgba(36, 78, 65, 0.07);
+
+  /* ---------- 动效 ---------- */
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------- 液态玻璃（仅悬浮层级：顶栏 / 遮罩 / 抽屉 / 悬浮操作条） ---------- */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-blur: 16px;
+  --glass-shadow: 0 1px 2px rgba(21, 24, 29, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+
+  /* ---------- 层级 ---------- */
+  --z-nav: 100;
+  --z-dropdown: 500;
+  --z-modal: 1000;
+  --z-toast: 2000;
+
+  /* ---------- 布局尺寸 ---------- */
+  --layout-side-width: 224px;
+  --layout-side-width-collapsed: 80px;
+  --layout-top-height: 76px;
+  --layout-content-max: 1400px;
+  --layout-page-padding: 32px;
+
+  /* ---------- 焦点环 ---------- */
+  --focus-ring: 0 0 0 1px var(--color-primary), 0 0 0 4px var(--color-primary-soft);
+}
+
+/* 工作界面和认证入口均跟随系统外观，弹层也读取同一组语义令牌。 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-bg-page: #172221;
+    --color-bg-card: #1e2b29;
+    --color-bg-elevated: #273734;
+    --color-bg-sunken: #2a3c37;
+    --color-bg-hover: #334942;
+    --color-bg-sidebar: #1b2826;
+    --color-bg-mask: rgba(8, 18, 13, 0.65);
+    --color-border: #49615a;
+    --color-border-strong: #6c8c79;
+    --color-divider: #354942;
+    --color-text-1: #e7eee9;
+    --color-text-2: #b6c5bc;
+    --color-text-3: #a0b1a7;
+    --color-text-disabled: #748b7c;
+    --color-primary: #aacdc0;
+    --color-primary-hover: #c0dece;
+    --color-primary-active: #94b9a9;
+    --color-primary-soft: #2a3c37;
+    --color-primary-border: #537665;
+    --color-on-primary: #203c30;
+    --color-link: var(--color-primary);
+    --color-ai: var(--color-primary);
+    --color-ai-hover: var(--color-primary-hover);
+    --color-ai-strong: var(--color-primary);
+    --color-ai-soft: var(--color-primary-soft);
+    --color-ai-border: var(--color-primary-border);
+    --color-ai-canvas: var(--color-bg-page);
+    --color-success: #9dceac;
+    --color-success-strong: #b0dbbb;
+    --color-success-soft: #263f30;
+    --color-warning: #e1bd7b;
+    --color-warning-strong: #eccb92;
+    --color-warning-soft: #433b28;
+    --color-danger: #f1afa8;
+    --color-danger-strong: #f2b6b0;
+    --color-danger-soft: #3c2927;
+    --color-info: #a7c6e7;
+    --color-info-strong: #bed6ef;
+    --color-info-soft: #293d50;
+    --shadow-sm: none;
+    --shadow-md: 0 6px 18px rgba(8, 18, 13, 0.18);
+    --shadow-lg: 0 12px 36px rgba(8, 18, 13, 0.25);
+    --shadow-hover: none;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --layout-top-height: 64px;
+    --layout-page-padding: 16px;
+  }
+}
+
+/* 无障碍：降低动态效果 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+  }
+}
+
+/* 无障碍：降低透明材质，玻璃回退为实底 */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: var(--color-bg-card);
+    --glass-border: var(--color-border);
+    --glass-blur: 0px;
+    --login-glass-bg: #23313a;
+  }
+}

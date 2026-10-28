@@ -1,0 +1,19 @@
+# ============================================================================
+#  生产环境：关闭 SQL 打印与接口文档，密钥全部来自环境变量
+# ============================================================================
+mybatis-plus:
+  configuration:
+    # 生产关闭 SQL 日志：避免大量磁盘 I/O，同时防止 SQL 参数中的敏感信息落盘
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# 生产关闭接口文档，避免对外暴露内部接口定义
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# 生产日志级别：业务包只输出 info 及以上，debug 细节不落盘
+logging:
+  level:
+    com.ycc.zhixiucloud: info

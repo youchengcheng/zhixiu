@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" width="200" height="140" role="img" aria-label="暂无反馈">
+  <!-- 暂无反馈空状态插画：对话气泡 + 铅笔，冷灰为主、AI 轨道点缀 -->
+  <ellipse cx="100" cy="122" rx="56" ry="9" fill="#eef0f3" />
+
+  <!-- 气泡主体 -->
+  <path
+    d="M62 34h76a10 10 0 0 1 10 10v44a10 10 0 0 1-10 10H96l-20 16v-16H62a10 10 0 0 1-10-10V44a10 10 0 0 1 10-10z"
+    fill="#ffffff"
+    stroke="#d2d6dc"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+
+  <!-- 三条内容线 -->
+  <line x1="70" y1="56" x2="126" y2="56" stroke="#e3e6ea" stroke-width="4" stroke-linecap="round" />
+  <line x1="70" y1="72" x2="112" y2="72" stroke="#e3e6ea" stroke-width="4" stroke-linecap="round" />
+
+  <!-- AI 轨道点缀：待补充的小气泡 -->
+  <circle cx="134" cy="98" r="13" fill="#ebf5f8" stroke="#76b7c9" stroke-width="2" />
+  <path d="M134 92v9" stroke="#2c7f95" stroke-width="2.4" stroke-linecap="round" />
+  <path d="M134 104.5v.5" stroke="#2c7f95" stroke-width="2.6" stroke-linecap="round" />
+</svg>

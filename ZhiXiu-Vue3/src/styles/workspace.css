@@ -1,0 +1,198 @@
+/* 日常业务界面：继承认证入口灰绿材质，卡片 16px、控件 8px、标签 6px。 */
+:root {
+  --el-fill-color-lighter: var(--color-bg-page);
+  --el-fill-color-extra-light: var(--color-bg-page);
+  --el-fill-color-dark: var(--color-border);
+  --el-fill-color-darker: var(--color-border-strong);
+  --el-border-color-darker: var(--color-border-strong);
+}
+
+html .el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
+  --el-button-text-color: var(--color-on-primary);
+  --el-button-hover-text-color: var(--color-on-primary);
+  --el-button-active-text-color: var(--color-on-primary);
+  --el-button-disabled-text-color: var(--color-on-primary);
+  --el-button-bg-color: var(--color-primary);
+  --el-button-border-color: var(--color-primary);
+  --el-button-disabled-bg-color: var(--color-primary);
+  --el-button-disabled-border-color: var(--color-primary);
+}
+
+html .el-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+html .el-button {
+  white-space: nowrap;
+}
+
+.app-shell .el-button.is-disabled {
+  opacity: 0.5;
+}
+
+html .el-radio-button {
+  --el-radio-button-checked-text-color: var(--color-on-primary);
+  --el-radio-button-checked-bg-color: var(--color-primary);
+  --el-radio-button-checked-border-color: var(--color-primary);
+}
+
+.app-shell .el-form .el-cascader {
+  width: 100%;
+}
+
+.app-shell .el-input__wrapper,
+.app-shell .el-select__wrapper,
+html .el-dialog .el-input__wrapper,
+html .el-dialog .el-select__wrapper {
+  min-height: 40px;
+  border-radius: var(--radius-md);
+}
+
+.app-shell .el-input--small .el-input__wrapper,
+.app-shell .el-select--small .el-select__wrapper {
+  min-height: 30px;
+}
+
+.app-shell .el-form-item__label {
+  margin-bottom: var(--space-2);
+  color: var(--color-text-1);
+  font-size: var(--fs-sm);
+}
+
+.app-shell .el-form-item {
+  margin-bottom: var(--space-5);
+}
+
+html .el-table th.el-table__cell {
+  padding-block: 14px;
+  background: var(--color-bg-page);
+}
+
+html .el-table__empty-block {
+  min-height: 160px;
+}
+
+html .el-dialog {
+  max-width: calc(100% - 32px);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+html .el-dialog__footer {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+
+html .el-drawer {
+  max-width: 100%;
+}
+
+/* 所有列表沿用查询 + 表格 + 分页，统一查询区的间距和表面层次。 */
+.app-shell .page-filter {
+  padding: var(--space-5);
+  gap: var(--space-3);
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-divider);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.app-shell .page-filter > .el-input,
+.app-shell .page-filter > .el-select,
+.app-shell .page-filter > .el-cascader,
+.app-shell .page-filter > .el-date-editor {
+  max-width: 100%;
+}
+
+.app-shell .page-pager {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-divider);
+}
+
+.page-pager .pagination {
+  padding-top: 0;
+}
+
+/* 账号摘要轻量强调，资料与密码表单沿用普通卡片底色。 */
+.profile-page .profile-account {
+  background: var(--color-primary-soft);
+}
+
+.profile-page .account-grid dd {
+  overflow-wrap: anywhere;
+}
+
+/* 详情数据分组，以浅底区分字段和值，仍保留原来的日志和状态操作。 */
+.detail-page :is(.detail-grid, .wdetail-grid, .adetail-grid) {
+  padding: var(--space-4);
+  background: var(--color-bg-page);
+  border-radius: var(--radius-md);
+}
+
+.detail-page dd {
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-color-scheme: dark) {
+  html .el-button--success:not(.is-plain):not(.is-text):not(.is-link),
+  html .el-button--warning:not(.is-plain):not(.is-text):not(.is-link),
+  html .el-button--danger:not(.is-plain):not(.is-text):not(.is-link),
+  html .el-button--info:not(.is-plain):not(.is-text):not(.is-link) {
+    --el-button-text-color: var(--color-bg-page);
+    --el-button-hover-text-color: var(--color-bg-page);
+    --el-button-active-text-color: var(--color-bg-page);
+  }
+
+  .skeleton::after {
+    background: linear-gradient(90deg, transparent, rgba(182, 197, 188, 0.08), transparent);
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-page > .grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .layout-page > .grid-4 .stat-card {
+    padding: var(--space-4);
+  }
+
+  .layout-page > .grid-4 .stat-card__value {
+    font-size: var(--fs-h1);
+    overflow-wrap: anywhere;
+  }
+
+  .app-shell .page-filter {
+    padding: var(--space-4);
+  }
+
+  .app-shell .page-filter > .el-input,
+  .app-shell .page-filter > .el-select,
+  .app-shell .page-filter > .el-cascader,
+  .app-shell .page-filter > .el-date-editor {
+    width: 100%;
+  }
+
+  .app-shell .page-filter > .spacer {
+    display: none;
+  }
+
+  .app-shell .page-pager {
+    padding: var(--space-4);
+  }
+
+  .app-shell .between,
+  .app-shell .hstack {
+    flex-wrap: wrap;
+  }
+
+  html .el-dialog {
+    margin-top: 6vh;
+    padding: var(--space-4);
+  }
+
+  html .el-dialog .grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

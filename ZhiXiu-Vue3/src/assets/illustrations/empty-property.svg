@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" width="200" height="140" role="img" aria-label="暂无房产">
+  <!-- 暂无房产空状态插画：楼栋轮廓 + 窗格，冷灰为主、主色点缀 -->
+  <ellipse cx="100" cy="122" rx="58" ry="9" fill="#eef0f3" />
+
+  <!-- 楼栋主体 -->
+  <rect x="62" y="34" width="76" height="86" rx="6" fill="#ffffff" stroke="#d2d6dc" stroke-width="2" />
+  <!-- 顶部檐口 -->
+  <line x1="56" y1="34" x2="144" y2="34" stroke="#d2d6dc" stroke-width="3" stroke-linecap="round" />
+
+  <!-- 窗格：主色软底 -->
+  <rect x="74" y="47" width="18" height="15" rx="3" fill="#d7e7e4" stroke="#86b2aa" stroke-width="1.5" />
+  <rect x="104" y="47" width="18" height="15" rx="3" fill="#d7e7e4" stroke="#86b2aa" stroke-width="1.5" />
+  <rect x="74" y="70" width="18" height="15" rx="3" fill="#eef0f3" stroke="#d2d6dc" stroke-width="1.5" />
+  <rect x="104" y="70" width="18" height="15" rx="3" fill="#eef0f3" stroke="#d2d6dc" stroke-width="1.5" />
+
+  <!-- 门 -->
+  <rect x="98" y="96" width="20" height="24" rx="3" fill="#edf4f3" stroke="#86b2aa" stroke-width="1.5" />
+  <circle cx="114" cy="108" r="1.6" fill="#5c948b" />
+</svg>

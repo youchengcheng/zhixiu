@@ -1,0 +1,30 @@
+# ============================================================================
+#  开发环境：本机 Docker 容器连接串
+#  本项目容器映射：MySQL 3307→3306、Redis 6379、MinIO 9000/9090、RocketMQ 9876/8081
+#  密钥不写在这里，全部来自 application-local.yml 或环境变量
+# ============================================================================
+spring:
+  datasource:
+    # 覆盖主配置的数据源地址：本机 Docker MySQL 容器 3306 映射到宿主机 3307
+    # 其余连接参数含义同 application.yml（UTF-8、东八区、关闭 SSL、批量重写）
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:zhixiu}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+
+mybatis-plus:
+  configuration:
+    # 开发环境将 SQL 与参数打印到控制台，便于调试；生产由 application-prod.yml 关闭
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 开发环境日志级别：业务包与 Spring AI 输出 debug 细节
+logging:
+  level:
+    # 本项目业务代码（Controller/Service/Mapper 等）
+    com.ycc.zhixiucloud: debug
+    # Spring AI 内部调用链，便于排查模型请求与向量检索
+    org.springframework.ai: debug
+
+# 开发环境打开接口文档，便于直接调试（Knife4j 页面 /doc.html，Swagger UI 页面 /swagger-ui.html）
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

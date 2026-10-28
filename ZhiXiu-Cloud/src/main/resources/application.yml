@@ -1,0 +1,201 @@
+# ============================================================================
+#  智修云 · 物业报修系统 — 主配置
+#  密钥一律走环境变量（禁止硬编码）：本机开发放在项目根目录 application-local.yml（已 gitignore，不进 jar）
+# ============================================================================
+# ---------- 内嵌 Web 服务器 ----------
+server:
+  # HTTP 监听端口；前端开发代理与生产反向代理均指向该端口
+  port: 8080
+  servlet:
+    # 应用上下文路径；"/" 表示接口直接挂在根路径，无额外前缀
+    context-path: /
+
+spring:
+  application:
+    # 应用名，用于日志、监控等服务标识
+    name: ZhiXiu-Cloud
+  # dev = 开发连接串；local = 本机密钥覆盖层（该文件不提交，缺失不影响启动）
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev,local}
+  servlet:
+    multipart:
+      # 单个上传文件大小上限（报修/完工图片），单位 MB
+      max-file-size: 10MB
+      # 单次请求总大小上限（多张图片 + 表单字段），单位 MB
+      max-request-size: 50MB
+  jackson:
+    # 全局 JSON 日期格式与时区（东八区），保证前后端时间展示一致
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    # 值为 null 的属性不参与序列化，精简响应体
+    default-property-inclusion: non_null
+  mvc:
+    async:
+      request-timeout: 60000          # SSE 流式响应超时（毫秒）
+
+  # ---------- 数据源 ----------
+  # MySQL 8 驱动；主机、端口、库名均支持环境变量覆盖，冒号后为本地默认值
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 连接参数说明：useUnicode/characterEncoding 指定 UTF-8 编解码；serverTimezone 指定会话时区；
+    # useSSL=false 适用于本机/内网；allowPublicKeyRetrieval 兼容 MySQL 8 caching_sha2_password；
+    # rewriteBatchedStatements=true 将批量插入合并为多值 SQL，提高批量写入吞吐
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:zhixiu}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    # 无默认值：必须由环境变量 DB_PASSWORD 或 application-local.yml 提供
+    password: ${DB_PASSWORD}
+    # HikariCP 连接池：最小空闲 5、最大 20；idle-timeout 300000ms(5 分钟)、connection-timeout 30000ms(30 秒)
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      connection-timeout: 30000
+
+  # ---------- Redis（业务 + 向量库共用实例，按 database 与 key 前缀隔离） ----------
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      # 业务缓存与向量库共用 0 号库，向量库通过 repair-knowledge: 前缀隔离；Redisson 另用 1 号库
+      database: ${REDIS_DATABASE:0}
+      # 命令执行超时，避免 Redis 故障时请求线程长时间阻塞
+      timeout: 5000ms
+      lettuce:
+        pool:
+          # Lettuce 连接池（依赖 pom 中的 commons-pool2）：最大连接 16、最大空闲 8、最小空闲 2
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+# ---------- MyBatis-Plus ----------
+mybatis-plus:
+  # XML 映射文件位置；classpath*: 会同时扫描依赖 jar，** 匹配任意层级目录
+  mapper-locations: classpath*:mapper/**/*.xml
+  # 实体别名包：XML 的 resultType/parameterType 可省略包名，只写类名
+  type-aliases-package: com.ycc.zhixiucloud.entity
+  configuration:
+    # 数据库下划线列名自动映射为 Java 驼峰属性（如 create_time -> createTime）
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # prod 覆盖为 NoLoggingImpl
+  global-config:
+    # 关闭 MyBatis-Plus 启动 Banner，保持启动日志简洁
+    banner: false
+    db-config:
+      # 主键策略：ASSIGN_ID 使用雪花算法生成 64 位全局唯一 ID
+      id-type: assign_id
+      # 逻辑删除：deleted=1 表示已删除；查询自动追加 deleted=0，删除操作转为 UPDATE
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ---------- 接口文档（Knife4j 文档页 + springdoc 元数据） ----------
+springdoc:
+  api-docs:
+    # OpenAPI 元数据地址；Knife4j 文档页会请求该地址获取接口定义
+    path: /v3/api-docs
+  swagger-ui:
+    # 原生 Swagger UI 访问路径；Knife4j 页面入口为 /doc.html
+    path: /swagger-ui.html
+    # 标签与接口均按字母排序，便于查找
+    tags-sorter: alpha
+    operations-sorter: alpha
+    # 浏览器刷新后保留已输入的 Authorization 令牌
+    persist-authorization: true
+  # 扫描的控制器包，只有该包下的接口会进入文档
+  packages-to-scan: com.ycc.zhixiucloud.controller
+  # 分组：等价于 Knife4j 的 api-rule 按包分组，Knife4j 文档页的分组下拉由此而来
+  group-configs:
+    # 分组标识（内部）与展示名称（文档页下拉显示）
+    - group: default
+      display-name: 智修云接口
+      packages-to-scan: com.ycc.zhixiucloud.controller
+  # 接口默认响应媒体类型
+  default-produces-media-type: application/json
+
+# ---------- MinIO ----------
+# 对象存储：报修、完工、评价图片统一存于 bucket；应用启动时 MinioConfig 会自动建桶并设置匿名只读策略
+minio:
+  # MinIO 服务地址（容器映射端口 9000），生产替换为实际域名
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  # 访问密钥；无默认值，由环境变量或 application-local.yml 提供
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
+  # 图片存储桶名，需与 MinIO 中实际桶保持一致
+  bucket: ${MINIO_BUCKET:repair-images}
+  # 图片公网访问前缀，FileServiceImpl 按 publicUrl + /bucket/ + 对象名 拼接直链
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+
+# ---------- JWT ----------
+jwt:
+  # 无默认值：密钥必须由环境变量或 application-local.yml 提供，缺失即启动失败
+  secret: ${JWT_SECRET}
+  expire: 7200            # 秒（2 小时）
+  refresh-expire: 604800  # 秒（7 天）
+  # 令牌所在请求头名称与取值前缀，JwtAuthenticationFilter 按 "Bearer <token>" 解析
+  header: Authorization
+  prefix: "Bearer "
+
+# ---------- Redisson ----------
+# 分布式锁客户端；与业务 Redis 同实例，但使用单独的 database 隔离锁数据
+redisson:
+  address: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  database: ${REDISSON_DATABASE:1}   # 与业务 Redis 隔离库
+  # 抢单/派单锁：wait=0 表示抢不到锁立即返回失败，不排队等待；lease=10 秒后自动释放，防止宕机死锁
+  lock-wait-time: 0     # 秒，抢单锁立即返回
+  lock-lease-time: 10   # 秒，锁自动释放
+
+# ---------- RocketMQ（5.x gRPC 客户端 + Broker 内嵌 Proxy） ----------
+# producer 供 RocketMQClientTemplate 发送；simple-consumer 与 push-consumer 为同一套连接参数：
+# @RocketMQMessageListener 的注解默认值取自 ${rocketmq.push-consumer.*} 占位符（starter 内置约定），
+# 因此这里必须显式给出 push-consumer 段，否则 endpoints 解析为空串导致消费端创建失败。
+# 本机 Broker 未开 ACL，access-key / secret-key 为占位非密钥，生产用环境变量覆盖。
+rocketmq:
+  producer:
+    endpoints: ${ROCKETMQ_ENDPOINTS:localhost:8081}
+    access-key: ${ROCKETMQ_ACCESS_KEY:}
+    secret-key: ${ROCKETMQ_SECRET_KEY:}
+    # 同步发送超时 3000ms；失败最多尝试 3 次（含首次）
+    request-timeout: 3000
+    max-attempts: 3
+  simple-consumer:
+    endpoints: ${ROCKETMQ_ENDPOINTS:localhost:8081}
+    access-key: ${ROCKETMQ_ACCESS_KEY:}
+    secret-key: ${ROCKETMQ_SECRET_KEY:}
+  push-consumer:
+    endpoints: ${ROCKETMQ_ENDPOINTS:localhost:8081}
+    access-key: ${ROCKETMQ_ACCESS_KEY:}
+    secret-key: ${ROCKETMQ_SECRET_KEY:}
+# ---------- 业务参数 ----------
+# 以下为业务参数：CORS 白名单见 WebMvcConfig，SLA 兜底时限见 SlaServiceImpl，
+# AI 追问上限见 AiAssistantServiceImpl，模型连接参数见 SpringAiConfig
+repair:
+  cors:
+    # 前端来源白名单，逗号分隔；默认放开全部，生产用 CORS_ALLOWED_ORIGINS 收紧
+    allowed-origin-patterns: "${CORS_ALLOWED_ORIGINS:*}"
+  sla:
+    # 无 SLA 规则命中时的兜底响应时限，单位分钟
+    default-response-timeout: 120   # 分钟
+    # 无 SLA 规则命中时的兜底处理时限，单位分钟（1440 分钟 = 24 小时）
+    default-handle-timeout: 1440    # 分钟
+  order:
+    # 完工后等待业主确认的时长（小时），超时后由 AUTO_CONFIRM 动作自动确认
+    auto-confirm-hours: 48          # 完工后自动确认时长
+  ai:
+    enabled: ${AI_ENABLED:true}     # 关闭时 AI 链路整体降级，其余模块不受影响
+    follow-up-limit: 2              # 槽位填充最多追问次数
+    hot-question-ttl: 3600          # 热门问答缓存秒数
+    session-ttl: 7200               # 会话上下文缓存秒数
+  # OpenAI 兼容接口配置；temperature 等固定参数在 SpringAiConfig 中设置
+  ai-model:
+    # 兼容模式地址（默认阿里云百炼），生产可用 DASHSCOPE_BASE_URL 覆盖
+    base-url: ${DASHSCOPE_BASE_URL:https://ws-ms4u3sopffjgsuxk.cn-beijing.maas.aliyuncs.com/compatible-mode}
+    # API Key：优先读环境变量 DASHSCOPE_API_KEY；此处默认值仅供本地联调，生产务必覆盖，禁止提交真实密钥
+    api-key: ${DASHSCOPE_API_KEY:sk-ws-H.ERELPMR.4Uo0.MEQCIDtZQGzqZQC2rPUnTOl1dWjQWo1j02vkytQ-ZREHlWhFAiABeLcpIvG4vxjzV3-_oEBppnR6hRDOBDAJD7w4Hk3Kzw}
+    # 对话模型名（流式问答）
+    chat-model: ${DASHSCOPE_CHAT_MODEL:qwen3.5-omni-flash}
+    # 向量化模型名（知识库入库与检索共用）
+    embedding-model: ${DASHSCOPE_EMBEDDING_MODEL:text-embedding-v4}
+    # 向量维度，必须与向量化模型输出一致，否则 RedisVectorStore 建索引/检索会失败
+    vector-dimensions: ${AI_VECTOR_DIMENSIONS:1024}

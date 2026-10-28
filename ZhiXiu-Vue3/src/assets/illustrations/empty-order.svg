@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" width="200" height="140" role="img" aria-label="暂无工单">
+  <!-- 暂无工单空状态插画：工单板 + 待办标记，冷灰为主、主色点缀 -->
+  <ellipse cx="100" cy="120" rx="60" ry="9" fill="#eef0f3" />
+
+  <!-- 工单板 -->
+  <rect x="58" y="26" width="84" height="92" rx="8" fill="#ffffff" stroke="#d2d6dc" stroke-width="2" />
+  <!-- 顶部夹子 -->
+  <rect x="86" y="17" width="28" height="15" rx="7.5" fill="#e3e6ea" stroke="#d2d6dc" stroke-width="2" />
+
+  <!-- 内容行 -->
+  <line x1="72" y1="52" x2="128" y2="52" stroke="#e3e6ea" stroke-width="4" stroke-linecap="round" />
+  <line x1="72" y1="68" x2="118" y2="68" stroke="#e3e6ea" stroke-width="4" stroke-linecap="round" />
+  <line x1="72" y1="84" x2="124" y2="84" stroke="#e3e6ea" stroke-width="4" stroke-linecap="round" />
+
+  <!-- 主色点缀：待处理标记 -->
+  <circle cx="127" cy="99" r="13" fill="#edf4f3" stroke="#86b2aa" stroke-width="2" />
+  <path d="M121 99l4 4 8-9" fill="none" stroke="#2c5f57" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
