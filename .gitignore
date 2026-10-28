@@ -11,6 +11,12 @@
 !/ZhiXiu-Cloud/
 !/ZhiXiu-Vue3/
 
+# ========== 工程内非交付内容 ==========
+# AI 协作约定文件（前后端各自的 AGENTS.md）
+**/AGENTS.md
+# 后端开发规范文档与本机环境初始化脚本
+/ZhiXiu-Cloud/docs/
+
 # ========== Java / Maven ==========
 target/
 !.mvn/wrapper/maven-wrapper.jar
