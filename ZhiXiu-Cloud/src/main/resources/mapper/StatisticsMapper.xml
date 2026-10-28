@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ycc.zhixiucloud.mapper.StatisticsMapper">
+
+    <!-- namespace 对应 Mapper 接口 com.ycc.zhixiucloud.mapper.StatisticsMapper；
+         本文件是管理端统计面板的聚合查询集合，所有查询均过滤 deleted=0，
+         避免逻辑删除数据污染统计口径 -->
+
+    <!-- 工单总数：逻辑删除数据不参与统计；无参数，返回 Long -->
+    <select id="selectTotalOrderCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM work_order
+        WHERE deleted = 0
+    </select>
+
+    <!-- 待处理工单数：status=PENDING 表示已下单但尚未派单 -->
+    <select id="selectPendingOrderCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM work_order
+        WHERE deleted = 0
+          AND status = 'PENDING'
+    </select>
+
+    <!-- 进行中工单数：已派单到已提交完工之间（ASSIGNED/ACCEPTED/GOING/PAUSED/TRANSFER_PENDING/SUBMITTED） -->
+    <select id="selectGoingOrderCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM work_order
+        WHERE deleted = 0
+          AND status IN ('ASSIGNED', 'ACCEPTED', 'GOING', 'PAUSED', 'TRANSFER_PENDING', 'SUBMITTED')
+    </select>
+
+    <!-- 已完成工单数：含业主已确认的 COMPLETED（待评价）与已评价关闭的 CLOSED -->
+    <select id="selectCompletedOrderCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM work_order
+        WHERE deleted = 0
+          AND status IN ('COMPLETED', 'CLOSED')
+    </select>
+
+    <!-- 平均响应时长(分钟)：下单到接单，即 create_time -> accepted_time；
+         仅统计已接单工单，TIMESTAMPDIFF 按分钟计算后对平均值四舍五入 -->
+    <select id="selectAvgResponseMinutes" resultType="java.lang.Long">
+        SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, create_time, accepted_time)))
+        FROM work_order
+        WHERE deleted = 0
+          AND accepted_time IS NOT NULL
+    </select>
+
+    <!-- 平均处理时长(分钟)：接单到提交完工，即 accepted_time -> submitted_time；
+         两个时间点均非空才参与统计 -->
+    <select id="selectAvgHandleMinutes" resultType="java.lang.Long">
+        SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, accepted_time, submitted_time)))
+        FROM work_order
+        WHERE deleted = 0
+          AND accepted_time IS NOT NULL
+          AND submitted_time IS NOT NULL
+    </select>
+
+    <!-- 全站平均评分：来自评价表，保留 1 位小数；无评价时 AVG 返回 NULL -->
+    <select id="selectAvgEvaluationScore" resultType="java.math.BigDecimal">
+        SELECT ROUND(AVG(score), 1)
+        FROM evaluation
+        WHERE deleted = 0
+    </select>
+
+    <!-- SLA 超时工单数：响应超时或处理超时任一为 1 即计入 -->
+    <select id="selectSlaBreachedCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM work_order
+        WHERE deleted = 0
+          AND (sla_response_breached = 1 OR sla_handle_breached = 1)
+    </select>
+
+    <!-- AI 会话总数：仅统计未逻辑删除的会话 -->
+    <select id="selectTotalSessionCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ai_chat_session
+        WHERE deleted = 0
+    </select>
+
+    <!-- AI 自助解决会话数：resolved=1 表示用户通过问答/排查自助解决 -->
+    <select id="selectResolvedSessionCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ai_chat_session
+        WHERE deleted = 0
+          AND resolved = 1
+    </select>
+
+    <!-- AI 转工单会话数：resolved=2 表示会话最终生成工单草稿并转为工单 -->
+    <select id="selectTransferSessionCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM ai_chat_session
+        WHERE deleted = 0
+          AND resolved = 2
+    </select>
+
+    <!-- 累计输入 Token 数：COALESCE 将无消息时的 NULL 转为 0 -->
+    <select id="selectTotalPromptTokens" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(prompt_tokens), 0)
+        FROM ai_chat_message
+        WHERE deleted = 0
+    </select>
+
+    <!-- 累计输出 Token 数：COALESCE 将无消息时的 NULL 转为 0 -->
+    <select id="selectTotalCompletionTokens" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(completion_tokens), 0)
+        FROM ai_chat_message
+        WHERE deleted = 0
+    </select>
+
+    <!-- 近 N 天工单量：按下单时间按 MM-dd 分组，区间为左闭右开 [startTime, endTime)；
+         入参 startTime/endTime 由 Service 按天数计算，XML 中需转义为 >= / < -->
+    <select id="selectDailyOrderCount" resultType="com.ycc.zhixiucloud.dto.DailyCountDTO">
+        SELECT DATE_FORMAT(create_time, '%m-%d') AS day,
+               COUNT(*)                          AS `count`
+        FROM work_order
+        WHERE deleted = 0
+          AND create_time &gt;= #{startTime}
+          AND create_time &lt; #{endTime}
+        GROUP BY DATE_FORMAT(create_time, '%m-%d')
+        ORDER BY day
+    </select>
+
+    <!-- 工单类型分布：工单关联报修类型，按数量倒序取前 10；
+         工单与类型均需未逻辑删除，别名 name/count 对应 CategoryCountDTO 字段 -->
+    <select id="selectCategoryDistribution" resultType="com.ycc.zhixiucloud.dto.CategoryCountDTO">
+        SELECT rc.name  AS name,
+               COUNT(*) AS `count`
+        FROM work_order wo
+                 JOIN repair_category rc ON wo.category_id = rc.id
+        WHERE wo.deleted = 0
+          AND rc.deleted = 0
+        GROUP BY wo.category_id, rc.name
+        ORDER BY `count` DESC
+        LIMIT 10
+    </select>
+
+    <!-- 师傅接单排行：关联师傅与用户，某月内按接单数倒序取前 N（LIMIT #{top}）；
+         真实姓名为空时回退到登录名；工单、师傅、用户三方均过滤逻辑删除，
+         仅统计已实际接单（accepted_worker_id 非空）的工单 -->
+    <select id="selectWorkerRanking" resultType="com.ycc.zhixiucloud.dto.WorkerRankingDTO">
+        SELECT mw.id                                       AS workerId,
+               COALESCE(NULLIF(u.real_name, ''), u.username) AS workerName,
+               COUNT(*)                                    AS orderCount,
+               mw.avg_score                                AS avgScore
+        FROM work_order wo
+                 JOIN maintenance_worker mw ON wo.accepted_worker_id = mw.id
+                 JOIN `user` u ON mw.user_id = u.id
+        WHERE wo.deleted = 0
+          AND mw.deleted = 0
+          AND u.deleted = 0
+          AND wo.accepted_worker_id IS NOT NULL
+          AND wo.create_time &gt;= #{startTime}
+          AND wo.create_time &lt; #{endTime}
+        GROUP BY mw.id, u.real_name, u.username, mw.avg_score
+        ORDER BY COUNT(*) DESC
+        LIMIT #{top}
+    </select>
+
+    <!-- 满意度分布：按评分档位（1-5 分）分组统计评价数量，别名对应 ScoreCountDTO -->
+    <select id="selectScoreDistribution" resultType="com.ycc.zhixiucloud.dto.ScoreCountDTO">
+        SELECT score    AS score,
+               COUNT(*) AS `count`
+        FROM evaluation
+        WHERE deleted = 0
+        GROUP BY score
+    </select>
+
+</mapper>

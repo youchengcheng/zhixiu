@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ycc.zhixiucloud.mapper.EvaluationMapper">
+
+    <!-- namespace 对应 Mapper 接口 com.ycc.zhixiucloud.mapper.EvaluationMapper；
+         通用单表 CRUD 由 MyBatis-Plus BaseMapper 提供，此处只放自定义 SQL -->
+
+    <!-- 师傅平均评分，写入 maintenance_worker.avg_score：
+         仅统计未逻辑删除的评价，ROUND(...,1) 保留 1 位小数；无评价时 AVG 返回 NULL -->
+    <select id="selectAvgScoreByWorker" resultType="java.math.BigDecimal">
+        SELECT ROUND(AVG(score), 1)
+        FROM evaluation
+        WHERE deleted = 0
+          AND worker_id = #{workerId}
+    </select>
+
+</mapper>

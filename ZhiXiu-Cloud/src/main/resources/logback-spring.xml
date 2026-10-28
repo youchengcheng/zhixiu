@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 运行日志：按天 + 按大小滚动，INFO 与 ERROR 分文件，保留 30 天 / 单文件 50MB / 总量 3GB -->
+<configuration>
+    <!-- 日志根目录：优先读取环境变量 LOG_HOME，未设置时使用运行目录下的 ./logs -->
+    <property name="LOG_HOME" value="${LOG_HOME:-./logs}"/>
+    <!-- 日志格式：时间(毫秒) [线程名] 级别 类名(最长 50 字符) - 日志内容 -->
+    <property name="PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"/>
+
+    <!-- 控制台输出：开发时在 IDE 查看，容器部署时可用 docker logs 查看 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- INFO 文件：LevelFilter 精确匹配 INFO，DEBUG/WARN/ERROR 不会写入此文件 -->
+    <appender name="INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 当前活动日志文件 -->
+        <file>${LOG_HOME}/info/info.log</file>
+        <!-- 只接受 INFO：匹配则 ACCEPT，不匹配则 DENY -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <!-- 滚动策略：按天 + 单文件 50MB 切分，文件名带日期和序号；保留 30 天，单组总量上限 3GB -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/info/info.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <!-- 编码器：统一日志格式与 UTF-8，避免中文乱码 -->
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ERROR 文件：ThresholdFilter 接受 ERROR 及以上级别，集中记录异常便于排查 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 当前活动错误日志文件 -->
+        <file>${LOG_HOME}/error/error.log</file>
+        <!-- 阈值过滤：低于 ERROR 的日志全部丢弃 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <!-- 滚动策略：按天 + 单文件 50MB 切分，文件名带日期和序号；保留 30 天，单组总量上限 3GB -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/error/error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <!-- 编码器：统一日志格式与 UTF-8，避免中文乱码 -->
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 业务包固定 DEBUG，用于打印业务流转与 SQL 细节 -->
+    <logger name="com.ycc.zhixiucloud" level="DEBUG"/>
+    <!-- Spring AI 调用链 DEBUG，便于排查模型请求与向量检索 -->
+    <logger name="org.springframework.ai" level="DEBUG"/>
+
+    <!-- 根日志：INFO 级别，统一挂载控制台、INFO 文件、ERROR 文件三个 appender -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="INFO_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+</configuration>

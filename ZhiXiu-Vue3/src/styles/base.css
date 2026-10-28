@@ -1,0 +1,191 @@
+/* 基础层：重置、排版、滚动条、焦点、无障碍降级 */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-page);
+  color: var(--color-text-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-base);
+  font-weight: var(--fw-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-semibold);
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-semibold);
+}
+
+h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-semibold);
+}
+
+small {
+  font-size: var(--fs-xs);
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--color-divider);
+  margin: 0;
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-text-1);
+}
+
+/* 焦点可见性：只在键盘操作时出现。
+   表单控件与 Element Plus 组件由外壳自己承载焦点外观，
+   这里排除它们，否则内层原生输入会再画一层边框，和外壳叠成双框。 */
+a:focus-visible,
+summary:focus-visible,
+button:not([class*='el-']):focus-visible,
+[tabindex]:not([tabindex='-1']):not([class*='el-']):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 滚动条：细、低对比、悬停加深 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--p-neutral-300) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--p-neutral-300);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--p-neutral-400);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 路由切换：淡入 + 轻微上浮，位移极小 */
+.route-fade-enter-active {
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.route-fade-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.route-fade-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.route-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-fade-enter-from {
+    transform: none;
+  }
+}

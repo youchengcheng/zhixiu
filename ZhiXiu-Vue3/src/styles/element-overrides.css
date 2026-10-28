@@ -1,0 +1,226 @@
+/* Element Plus 结构性微调（非变量部分）：表格、表单、按钮、标签、分页、弹层
+   选择器统一带 html 前缀：Element Plus 的组件样式在开发模式下晚于本文件注入，
+   同权重时后者胜出（悬停边框曾因此被 EP 抢回去），加前缀可让这套覆盖稳定生效，
+   同时避免用 !important。 */
+
+/* ---------- 表格 ---------- */
+html .el-table {
+  --el-table-border: none;
+  font-size: var(--fs-body);
+}
+
+html .el-table::before,
+html .el-table::after,
+html .el-table__inner-wrapper::before {
+  display: none;
+}
+
+html .el-table th.el-table__cell {
+  background: transparent;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-2);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.01em;
+}
+
+html .el-table td.el-table__cell {
+  border-bottom: 1px solid var(--color-divider);
+  padding: 13px 0;
+}
+
+html .el-table .cell {
+  padding: 0 var(--space-4);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+html .el-table th.el-table__cell .cell {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+html .el-table__row:last-child td.el-table__cell {
+  border-bottom: none;
+}
+
+/* 数值列统一等宽数字，避免对不齐 */
+html .el-table .cell--number {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------- 表单 ---------- */
+html .el-form-item__label {
+  color: var(--color-text-2);
+  font-weight: var(--fw-medium);
+}
+
+/* 输入类控件：边框由 inset 阴影承载，静默 1px、悬停加深、聚焦 1px 主色边 + 3px 浅环 */
+html .el-input__wrapper,
+html .el-textarea__inner,
+html .el-select__wrapper {
+  box-shadow: 0 0 0 1px var(--color-border) inset;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
+html .el-input__wrapper:not(.is-focus):not(.is-disabled):hover,
+html .el-select__wrapper:not(.is-focused):not(.is-disabled):hover,
+html .el-textarea__inner:not(:focus):not(:disabled):hover {
+  box-shadow: 0 0 0 1px var(--color-border-strong) inset;
+}
+
+html .el-input__wrapper.is-focus,
+html .el-select__wrapper.is-focused,
+html .el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--color-primary) inset, 0 0 0 3px var(--color-primary-soft);
+}
+
+/* 原生输入元素不自绘焦点环：外观完全由外层包装承载，否则会叠出第二层边框 */
+html .el-input__inner:focus,
+html .el-input__inner:focus-visible,
+html .el-textarea__inner:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 浏览器自动填充：保持白底与正文色，不出现系统黄底 */
+html .el-input__inner:-webkit-autofill,
+html .el-input__inner:-webkit-autofill:hover,
+html .el-input__inner:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text-1);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-bg-card) inset;
+  caret-color: var(--color-text-1);
+}
+
+/* 前后缀图标：静默态为三级文字色，聚焦时随主色 */
+html .el-input__prefix,
+html .el-input__suffix {
+  color: var(--color-text-3);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* 用户填进去的内容按正文色显示，比占位文案更实；禁用态仍由 Element Plus 自行降级 */
+html .el-input__inner,
+html .el-textarea__inner,
+html .el-select__selected-item {
+  color: var(--color-text-1);
+}
+
+html .el-input__wrapper.is-focus .el-input__prefix,
+html .el-input__wrapper.is-focus .el-input__suffix,
+html .el-select__wrapper.is-focused .el-select__caret {
+  color: var(--color-primary);
+}
+
+html .el-input__suffix .el-input__icon:hover,
+html .el-input__suffix .el-input__password:hover {
+  color: var(--color-text-1);
+}
+
+html .el-form-item__error {
+  padding-top: var(--space-1);
+  font-size: var(--fs-xs);
+}
+
+/* ---------- 按钮 ---------- */
+html .el-button {
+  font-weight: var(--fw-medium);
+}
+
+html .el-button--primary {
+  --el-button-hover-bg-color: var(--color-primary-hover);
+  --el-button-hover-border-color: var(--color-primary-hover);
+  --el-button-active-bg-color: var(--color-primary-active);
+  --el-button-active-border-color: var(--color-primary-active);
+}
+
+html .el-button.is-text {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+/* ---------- 表格内的文字操作按钮：紧凑、无下划线 ---------- */
+html .table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+html .table-actions .el-button {
+  height: auto;
+  padding: 0;
+  font-size: var(--fs-sm);
+}
+
+/* ---------- 标签 ---------- */
+html .el-tag {
+  --el-tag-border-radius: var(--radius-sm);
+  border-color: transparent;
+  font-weight: var(--fw-medium);
+}
+
+/* ---------- 分页 ---------- */
+html .el-pagination {
+  --el-pagination-button-bg-color: transparent;
+  font-variant-numeric: tabular-nums;
+  justify-content: flex-end;
+}
+
+html .el-pagination.is-background .el-pager li {
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- 弹层 ---------- */
+html .el-dialog__header {
+  margin-right: 0;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+html .el-dialog__title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-1);
+}
+
+html .el-dialog__body {
+  padding-top: var(--space-5);
+}
+
+html .el-drawer__header {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text-1);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---------- 描述列表 / 时间线：统一为令牌色 ---------- */
+html .el-descriptions__label {
+  color: var(--color-text-2);
+  font-weight: var(--fw-regular);
+}
+
+html .el-timeline-item__timestamp {
+  color: var(--color-text-3);
+}
+
+/* ---------- 消息与通知：更克制的圆角与阴影 ---------- */
+html .el-message {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border);
+}
+
+html .el-notification {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-border);
+}
+
+html .el-message-box {
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+}

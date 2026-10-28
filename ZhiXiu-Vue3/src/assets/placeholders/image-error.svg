@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="图片加载失败">
+  <!-- 图片占位：加载失败 / 无图，用于 el-image error 占位与详情页缺图 -->
+  <rect x="5" y="5" width="86" height="86" rx="10" fill="#f6f7f9" stroke="#e3e6ea" stroke-width="2" />
+
+  <!-- 山与太阳的通用「图片」符号 -->
+  <circle cx="34" cy="33" r="7" fill="#d2d6dc" />
+  <path d="M14 76l22-26 16 18 12-13 18 21z" fill="#e3e6ea" />
+
+  <!-- 破损斜线，表达「加载失败」 -->
+  <path d="M62 24l12 12M74 24L62 36" stroke="#b0b6bf" stroke-width="3" stroke-linecap="round" />
+</svg>

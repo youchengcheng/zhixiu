@@ -1,0 +1,16 @@
+# -------- 构建产物 --------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# -------- 运行日志 --------
+logs/
+*.log
+
+# -------- IDE --------
+.idea/
+*.iml
+.vscode/
+
+# -------- 本机明文密钥层（禁止提交，位于项目根目录） --------
+/application-local.yml
+!/application-local.yml.example

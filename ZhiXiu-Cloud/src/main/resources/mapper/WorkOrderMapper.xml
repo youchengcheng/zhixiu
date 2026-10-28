@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ycc.zhixiucloud.mapper.WorkOrderMapper">
+
+    <!-- namespace 对应 Mapper 接口 com.ycc.zhixiucloud.mapper.WorkOrderMapper；
+         通用单表 CRUD 由 MyBatis-Plus BaseMapper 提供，此处只放自定义 SQL -->
+
+    <!-- 师傅平均处理时长：接单时间到提交完工时间，逻辑删除数据不参与统计。
+         仅统计 accepted_time 与 submitted_time 均非空的工单，ROUND 后按分钟取整；
+         参数 workerId 对应 accepted_worker_id（实际接单人） -->
+    <select id="selectAvgHandleMinutes" resultType="java.lang.Long">
+        SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, accepted_time, submitted_time)))
+        FROM work_order
+        WHERE deleted = 0
+          AND accepted_worker_id = #{workerId}
+          AND accepted_time IS NOT NULL
+          AND submitted_time IS NOT NULL
+    </select>
+
+</mapper>
