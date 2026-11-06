@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ChatDotRound, CircleCheck, House, List, Tools } from '@element-plus/icons-vue'
 import communityPhoto from '@/assets/auth/community-courtyard.webp'
+import BrandLogo from '@/components/BrandLogo.vue'
 
 const props = defineProps({ view: { type: String, default: 'login' } })
 const imageFailed = ref(false)
@@ -36,9 +37,7 @@ const content = computed(() => {
   <div class="auth-page" :class="`auth-page--${view}`">
     <header class="auth-page__header">
       <div class="auth-brand">
-        <span class="auth-brand__mark" aria-hidden="true">修</span>
-        <span class="auth-brand__name">智修云</span>
-        <span class="auth-brand__description">物业报修系统</span>
+        <BrandLogo subtitle="物业报修系统" />
       </div>
       <span class="auth-page__header-note">
         <el-icon aria-hidden="true"><House /></el-icon>

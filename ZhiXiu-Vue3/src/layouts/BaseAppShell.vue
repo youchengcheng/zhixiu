@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import SideNav from './components/SideNav.vue'
 import TopBar from './components/TopBar.vue'
+import BrandLogo from '@/components/BrandLogo.vue'
 
 // 业主使用顶部服务导航，师傅与管理员使用可折叠侧栏；手机共用导航抽屉。
 // 菜单完全由路由 meta 推导（hidden 不出现在菜单，group 决定分组）
@@ -82,11 +83,7 @@ function onToggle() {
   <div class="app-shell" :class="{ 'app-shell--owner': isOwner, 'app-shell--operations': !isOwner }">
     <aside v-if="!isNarrow && !isOwner" class="app-shell__side" :class="{ 'is-collapsed': collapsed }">
       <router-link class="brand" :to="userStore.homePath" aria-label="智修云首页">
-        <span class="brand__mark" aria-hidden="true">修</span>
-        <span v-if="!collapsed" class="brand__text">
-          <span class="brand__name">智修云</span>
-          <span class="brand__desc">{{ props.roleLabel }}</span>
-        </span>
+        <BrandLogo :subtitle="props.roleLabel" :symbol-only="collapsed" />
       </router-link>
       <SideNav :menus="menus" :collapsed="collapsed" />
       <router-link v-if="!collapsed" class="app-shell__side-note" :to="`${roleRoutes[props.roleCode].path}/profile`">
@@ -104,11 +101,7 @@ function onToggle() {
       class="app-shell__drawer"
     >
       <router-link class="brand brand--drawer" :to="userStore.homePath" aria-label="智修云首页" @click="appStore.closeMobileNav()">
-        <span class="brand__mark" aria-hidden="true">修</span>
-        <span class="brand__text">
-          <span class="brand__name">智修云</span>
-          <span class="brand__desc">{{ props.roleLabel }}</span>
-        </span>
+        <BrandLogo :subtitle="props.roleLabel" />
       </router-link>
       <SideNav :menus="menus" :collapsed="false" @navigate="appStore.closeMobileNav()" />
     </el-drawer>
@@ -117,7 +110,7 @@ function onToggle() {
       <TopBar class="app-shell__top" :class="{ 'top-bar--service': isOwner && !isNarrow }" :collapsed="collapsed" :service-navigation="isOwner && !isNarrow" @toggle="onToggle">
         <template v-if="isOwner && !isNarrow" #brand>
           <router-link class="brand brand--service" :to="userStore.homePath" aria-label="智修云首页">
-            <span class="brand__mark" aria-hidden="true">修</span><span class="brand__name">智修云</span>
+            <BrandLogo compact />
           </router-link>
         </template>
         <template v-if="isOwner && !isNarrow" #navigation>
@@ -156,7 +149,7 @@ function onToggle() {
   width: var(--layout-side-width);
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-card);
+  background: var(--color-bg-sidebar);
   border-right: 1px solid var(--color-border);
 }
 
@@ -198,40 +191,6 @@ function onToggle() {
 .brand--drawer {
   padding-left: 0;
   border-bottom: none;
-}
-
-.brand__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-size: 19px;
-  font-weight: var(--fw-semibold);
-}
-
-.brand__text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 6px;
-  line-height: 1.3;
-}
-
-.brand__name {
-  font-size: 20px;
-  font-weight: var(--fw-semibold);
-  color: var(--color-text-1);
-  letter-spacing: 0.02em;
-}
-
-.brand__desc {
-  font-size: var(--fs-xs);
-  color: var(--color-text-3);
 }
 
 .app-shell__side-note {
