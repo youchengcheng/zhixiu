@@ -1,21 +1,21 @@
-/* 认证入口与业务界面共用中性表面和深绿主色。
+/* 认证入口与业务界面共用冷中性黑白灰表面。
    圆角规则：布局与图片 16px，输入框与按钮 8px，标签内选项 6px。 */
 .auth-page {
-  --auth-bg: #f5f7f8;
-  --auth-surface: #ffffff;
-  --auth-story-bg: #edf2f2;
-  --auth-text: #203a35;
-  --auth-muted: #536767;
-  --auth-placeholder: #69776f;
-  --auth-border: #dce4e4;
-  --auth-accent: var(--p-brand-600);
-  --auth-accent-hover: var(--p-brand-700);
-  --auth-on-accent: #f7fbf9;
-  --auth-focus: #c6dcd4;
+  --auth-bg: #f4f4f5;
+  --auth-surface: #fcfcfc;
+  --auth-story-bg: #ededf0;
+  --auth-text: #18181b;
+  --auth-muted: #52525b;
+  --auth-placeholder: #71717a;
+  --auth-border: #d4d4d8;
+  --auth-accent: #27272a;
+  --auth-accent-hover: #18181b;
+  --auth-on-accent: #fafafa;
+  --auth-focus: #d4d4d8;
   --auth-error: #a73d36;
   --auth-error-bg: #fbefee;
   --auth-error-border: #e9c2be;
-  --auth-shadow: 0 16px 60px rgba(36, 78, 65, 0.045);
+  --auth-shadow: 0 18px 60px rgba(24, 24, 27, 0.07);
   --color-text-1: var(--auth-text);
   --color-text-2: var(--auth-muted);
   --color-text-3: var(--auth-placeholder);
@@ -64,35 +64,7 @@
   align-items: center;
   justify-content: space-between;
 }
-.auth-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
-.auth-brand__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--auth-accent);
-  color: var(--auth-on-accent);
-  font-size: 19px;
-  font-weight: 600;
-}
-.auth-brand__name {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.auth-brand__description {
-  margin-left: 6px;
-  padding-left: 18px;
-  border-left: 1px solid var(--auth-border);
-  color: var(--auth-muted);
-  font-size: 13px;
-}
+.auth-brand { display: inline-flex; align-items: center; }
 .auth-page__header-note {
   display: inline-flex;
   align-items: center;
@@ -462,17 +434,17 @@ html .auth-page .auth-form__submit {
 /* 整个入口遵循系统外观，表单与介绍区一同切换。 */
 @media (prefers-color-scheme: dark) {
   .auth-page {
-    --auth-bg: #172221;
-    --auth-surface: #1e2b29;
-    --auth-story-bg: #2a3c37;
-    --auth-text: #e7eee9;
-    --auth-muted: #b6c5bc;
-    --auth-placeholder: #a0b1a7;
-    --auth-border: #49615a;
-    --auth-accent: #aacdc0;
-    --auth-accent-hover: #c0dece;
-    --auth-on-accent: #203c30;
-    --auth-focus: #537665;
+    --auth-bg: #18181b;
+    --auth-surface: #202024;
+    --auth-story-bg: #2f2f34;
+    --auth-text: #f4f4f5;
+    --auth-muted: #c7c7ce;
+    --auth-placeholder: #a1a1aa;
+    --auth-border: #3f3f46;
+    --auth-accent: #f4f4f5;
+    --auth-accent-hover: #fcfcfc;
+    --auth-on-accent: #18181b;
+    --auth-focus: #5b5b66;
     --auth-error: #f1afa8;
     --auth-error-bg: #3c2927;
     --auth-error-border: #925c57;
@@ -569,7 +541,7 @@ html .auth-page .auth-form__submit {
   .auth-page__header {
     height: 76px;
   }
-  .auth-brand__description,
+  .brand-logo__subtitle,
   .auth-page__header-note {
     display: none;
   }

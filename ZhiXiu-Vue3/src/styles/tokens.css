@@ -4,44 +4,44 @@
    ========================================================================== */
 
 :root {
-  /* ---------- 基础层：与认证入口同源的灰绿 ---------- */
-  --p-neutral-0: #ffffff;
-  --p-neutral-25: #fafcfc;
-  --p-neutral-50: #f5f7f8;
-  --p-neutral-100: #edf2f2;
-  --p-neutral-200: #dce4e4;
-  --p-neutral-300: #b9c8c8;
-  --p-neutral-400: #91a2a2;
-  --p-neutral-500: #607171;
-  --p-neutral-600: #536767;
-  --p-neutral-700: #425959;
-  --p-neutral-800: #304b47;
-  --p-neutral-900: #203a35;
-  --p-neutral-950: #172221;
+  /* ---------- 基础层：冷中性黑白灰 ---------- */
+  --p-neutral-0: #fcfcfc;
+  --p-neutral-25: #fafafa;
+  --p-neutral-50: #f4f4f5;
+  --p-neutral-100: #ededf0;
+  --p-neutral-200: #dedee3;
+  --p-neutral-300: #c7c7ce;
+  --p-neutral-400: #a1a1aa;
+  --p-neutral-500: #71717a;
+  --p-neutral-600: #52525b;
+  --p-neutral-700: #3f3f46;
+  --p-neutral-800: #2d2d31;
+  --p-neutral-900: #202024;
+  --p-neutral-950: #18181b;
 
-  /* ---------- 基础层：主色（冷灰蓝绿） ---------- */
-  --p-brand-50: #edf4f3;
-  --p-brand-100: #d7e7e4;
-  --p-brand-200: #b0cfc9;
-  --p-brand-300: #86b2aa;
-  --p-brand-400: #5c948b;
-  --p-brand-500: #3b776d;
-  --p-brand-600: #2c5f57;
-  --p-brand-700: #244e48;
-  --p-brand-800: #1c3d38;
-  --p-brand-900: #152c29;
+  /* ---------- 基础层：品牌轨道采用单色层级 ---------- */
+  --p-brand-50: #f4f4f5;
+  --p-brand-100: #e4e4e7;
+  --p-brand-200: #d4d4d8;
+  --p-brand-300: #a1a1aa;
+  --p-brand-400: #71717a;
+  --p-brand-500: #52525b;
+  --p-brand-600: #27272a;
+  --p-brand-700: #18181b;
+  --p-brand-800: #111113;
+  --p-brand-900: #0c0c0e;
 
-  /* ---------- 基础层：AI 强调色（低饱和冷青） ---------- */
-  --p-ai-50: #ebf5f8;
-  --p-ai-100: #d2e8ef;
-  --p-ai-200: #a6d1de;
-  --p-ai-300: #76b7c9;
-  --p-ai-400: #4a9aad;
-  --p-ai-500: #2c7f95;
-  --p-ai-600: #226779;
-  --p-ai-700: #1c5362;
-  --p-ai-800: #16414d;
-  --p-ai-900: #112f38;
+  /* ---------- 基础层：AI 轨道与品牌同源，避免额外强调色 ---------- */
+  --p-ai-50: var(--p-neutral-50);
+  --p-ai-100: var(--p-neutral-100);
+  --p-ai-200: var(--p-neutral-200);
+  --p-ai-300: var(--p-neutral-300);
+  --p-ai-400: var(--p-neutral-400);
+  --p-ai-500: var(--p-neutral-500);
+  --p-ai-600: var(--p-neutral-700);
+  --p-ai-700: var(--p-neutral-800);
+  --p-ai-800: var(--p-neutral-900);
+  --p-ai-900: var(--p-neutral-950);
 
   /* ---------- 基础层：状态语义色（soft / border / main / deep） ---------- */
   --p-success-soft: #edf6f0;
@@ -94,8 +94,8 @@
   --color-primary-soft: var(--p-neutral-100);
   --color-primary-border: var(--p-brand-200);
   --color-link: var(--p-brand-600);
-  --color-on-primary: #f7fbf9;
-  --color-bg-sidebar: #edf2f2;
+  --color-on-primary: #fafafa;
+  --color-bg-sidebar: #eeeeef;
 
   /* AI 表面复用主色：入口、对话、草稿与知识引用 */
   --color-ai: var(--color-primary);
@@ -122,14 +122,14 @@
   --color-ai-strong: var(--color-primary);
 
   /* 场景专属（全站唯一允许非浅色的三处） */
-  --login-bg: linear-gradient(160deg, #22303a 0%, #1b2b2e 55%, #152c29 100%);
+  --login-bg: linear-gradient(160deg, #2d2d31 0%, #202024 55%, #18181b 100%);
   --login-glass-bg: rgba(255, 255, 255, 0.1);
   --login-glass-border: rgba(255, 255, 255, 0.14);
   --login-text-1: #f2f5f6;
   --login-text-2: rgba(242, 245, 246, 0.66);
   --login-text-3: rgba(242, 245, 246, 0.42);
   --login-rule: rgba(255, 255, 255, 0.18);
-  --kpi-panel-bg: #1b2127;
+  --kpi-panel-bg: #202024;
   --kpi-panel-border: rgba(255, 255, 255, 0.08);
   --kpi-text-1: #f2f5f6;
   --kpi-text-2: rgba(242, 245, 246, 0.6);
@@ -176,10 +176,10 @@
 
   /* ---------- 阴影（无发光、无彩色阴影） ---------- */
   --shadow-xs: 0 1px 2px rgba(21, 24, 29, 0.04);
-  --shadow-sm: 0 2px 8px rgba(36, 78, 65, 0.025);
-  --shadow-md: 0 6px 18px rgba(36, 78, 65, 0.06);
-  --shadow-lg: 0 12px 36px rgba(36, 78, 65, 0.09);
-  --shadow-hover: 0 6px 16px rgba(36, 78, 65, 0.07);
+  --shadow-sm: 0 2px 8px rgba(24, 24, 27, 0.035);
+  --shadow-md: 0 8px 24px rgba(24, 24, 27, 0.07);
+  --shadow-lg: 0 18px 48px rgba(24, 24, 27, 0.1);
+  --shadow-hover: 0 8px 22px rgba(24, 24, 27, 0.08);
 
   /* ---------- 动效 ---------- */
   --dur-fast: 150ms;
@@ -215,26 +215,26 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --color-bg-page: #172221;
-    --color-bg-card: #1e2b29;
-    --color-bg-elevated: #273734;
-    --color-bg-sunken: #2a3c37;
-    --color-bg-hover: #334942;
-    --color-bg-sidebar: #1b2826;
-    --color-bg-mask: rgba(8, 18, 13, 0.65);
-    --color-border: #49615a;
-    --color-border-strong: #6c8c79;
-    --color-divider: #354942;
-    --color-text-1: #e7eee9;
-    --color-text-2: #b6c5bc;
-    --color-text-3: #a0b1a7;
-    --color-text-disabled: #748b7c;
-    --color-primary: #aacdc0;
-    --color-primary-hover: #c0dece;
-    --color-primary-active: #94b9a9;
-    --color-primary-soft: #2a3c37;
-    --color-primary-border: #537665;
-    --color-on-primary: #203c30;
+    --color-bg-page: #18181b;
+    --color-bg-card: #202024;
+    --color-bg-elevated: #2a2a2e;
+    --color-bg-sunken: #2f2f34;
+    --color-bg-hover: #38383f;
+    --color-bg-sidebar: #1d1d20;
+    --color-bg-mask: rgba(9, 9, 11, 0.72);
+    --color-border: #3f3f46;
+    --color-border-strong: #5b5b66;
+    --color-divider: #323238;
+    --color-text-1: #f4f4f5;
+    --color-text-2: #c7c7ce;
+    --color-text-3: #a1a1aa;
+    --color-text-disabled: #71717a;
+    --color-primary: #f4f4f5;
+    --color-primary-hover: #fcfcfc;
+    --color-primary-active: #dedee3;
+    --color-primary-soft: #2f2f34;
+    --color-primary-border: #5b5b66;
+    --color-on-primary: #18181b;
     --color-link: var(--color-primary);
     --color-ai: var(--color-primary);
     --color-ai-hover: var(--color-primary-hover);
@@ -255,8 +255,8 @@
     --color-info-strong: #bed6ef;
     --color-info-soft: #293d50;
     --shadow-sm: none;
-    --shadow-md: 0 6px 18px rgba(8, 18, 13, 0.18);
-    --shadow-lg: 0 12px 36px rgba(8, 18, 13, 0.25);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.28);
     --shadow-hover: none;
   }
 }
