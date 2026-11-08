@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
 import LetterAvatar from '@/components/LetterAvatar.vue'
 import AppBreadcrumb from './AppBreadcrumb.vue'
-import { ArrowDown, Expand, Fold } from '@element-plus/icons-vue'
+import { ArrowDown, Bell, Expand, Fold } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { ROLE } from '@/utils/dict'
 
@@ -17,12 +18,32 @@ const emit = defineEmits(['toggle'])
 
 const router = useRouter()
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
+let unreadTimer = null
 
 const roleLabel = computed(() => ROLE[userStore.roleCode]?.text || userStore.roleName || '')
 
 const profilePath = computed(() => {
   const prefix = { OWNER: '/owner', WORKER: '/worker', ADMIN: '/admin' }[userStore.roleCode]
   return prefix ? `${prefix}/profile` : '/login'
+})
+
+const notificationPath = computed(() => {
+  const prefix = { OWNER: '/owner', WORKER: '/worker', ADMIN: '/admin' }[userStore.roleCode]
+  return prefix ? `${prefix}/notification` : '/login'
+})
+
+function refreshUnread() {
+  notificationStore.loadUnreadCount().catch(() => {})
+}
+
+onMounted(() => {
+  refreshUnread()
+  unreadTimer = window.setInterval(refreshUnread, 30000)
+})
+
+onBeforeUnmount(() => {
+  if (unreadTimer) window.clearInterval(unreadTimer)
 })
 
 async function onCommand(command) {
@@ -42,6 +63,7 @@ async function onCommand(command) {
       return
     }
     await userStore.logout()
+    notificationStore.reset()
     router.replace({ name: 'Login' })
   }
 }
@@ -66,6 +88,23 @@ async function onCommand(command) {
     <span class="spacer" />
 
     <span v-if="roleLabel" class="top-bar__role">{{ roleLabel }}</span>
+
+    <el-badge
+      :value="notificationStore.unreadCount"
+      :max="99"
+      :hidden="notificationStore.unreadCount === 0"
+      class="top-bar__message-badge"
+    >
+      <button
+        class="top-bar__icon-button"
+        type="button"
+        aria-label="打开消息中心"
+        title="消息中心"
+        @click="router.push(notificationPath)"
+      >
+        <el-icon><Bell /></el-icon>
+      </button>
+    </el-badge>
 
     <el-dropdown trigger="click" @command="onCommand">
       <button class="top-bar__user" type="button" :aria-label="'账户菜单：' + userStore.displayName">
@@ -116,6 +155,11 @@ async function onCommand(command) {
 
 .top-bar__crumb {
   min-width: 0;
+}
+
+.top-bar__message-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .top-bar__role {

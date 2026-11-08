@@ -81,6 +81,12 @@ export const ownerRoutes = {
       meta: { title: '工单详情', hidden: true, activeMenu: '/owner/order/list' }
     },
     {
+      path: 'notification',
+      name: 'OwnerNotification',
+      component: () => import('@/views/common/Notification.vue'),
+      meta: { title: '消息中心', hidden: true }
+    },
+    {
       path: 'property',
       name: 'OwnerProperty',
       component: () => import('@/views/owner/Property.vue'),
@@ -138,6 +144,12 @@ export const workerRoutes = {
       meta: { title: '处理工单', hidden: true, activeMenu: '/worker/order/list' }
     },
     {
+      path: 'notification',
+      name: 'WorkerNotification',
+      component: () => import('@/views/common/Notification.vue'),
+      meta: { title: '消息中心', hidden: true }
+    },
+    {
       path: 'statistics',
       name: 'WorkerStatistics',
       component: () => import('@/views/worker/Statistics.vue'),
@@ -183,6 +195,12 @@ export const adminRoutes = {
       meta: { title: '工单详情', hidden: true, activeMenu: '/admin/order/list' }
     },
     {
+      path: 'notification',
+      name: 'AdminNotification',
+      component: () => import('@/views/common/Notification.vue'),
+      meta: { title: '消息中心', hidden: true }
+    },
+    {
       path: 'worker',
       name: 'AdminWorker',
       component: () => import('@/views/admin/Worker.vue'),
@@ -199,6 +217,12 @@ export const adminRoutes = {
       name: 'AdminSla',
       component: () => import('@/views/admin/Sla.vue'),
       meta: { title: 'SLA 配置', icon: 'Stopwatch', group: '配置与知识' }
+    },
+    {
+      path: 'category',
+      name: 'AdminCategory',
+      component: () => import('@/views/admin/Category.vue'),
+      meta: { title: '报修类型', icon: 'Grid', group: '配置与知识' }
     },
     {
       path: 'knowledge',

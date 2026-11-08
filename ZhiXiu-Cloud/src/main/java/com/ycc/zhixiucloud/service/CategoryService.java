@@ -1,14 +1,16 @@
 package com.ycc.zhixiucloud.service;
 
 import com.ycc.zhixiucloud.response.CategoryTreeResponseVO;
+import com.ycc.zhixiucloud.request.CategorySaveRequestVO;
+import com.ycc.zhixiucloud.response.AdminCategoryResponseVO;
 
 import java.util.List;
 
 /**
  * 报修类型服务。
  *
- * <p>职责边界：只提供业主端/管理端共用的只读类型树，不包含类型维护入口
- * （类型属于基础配置数据，由管理端初始化或直接维护）。</p>
+ * <p>职责边界：公共接口提供启用中的类型树；管理端接口提供包含停用节点的完整树，
+ * 并负责两级类型的新增、修改、排序、启停与安全删除。</p>
  *
  * <p>主要使用方：业主报修表单、AI 助手类型匹配、管理端工单筛选下拉框。</p>
  */
@@ -23,4 +25,19 @@ public interface CategoryService {
      * @return 类型树（一级节点含 children）；无数据时返回空列表
      */
     List<CategoryTreeResponseVO> tree();
+
+    /** 查询管理端完整类型树，包含停用节点。 */
+    List<AdminCategoryResponseVO> adminTree();
+
+    /** 新增一级或二级报修类型。 */
+    Long create(CategorySaveRequestVO requestVO);
+
+    /** 修改报修类型基础信息及层级。 */
+    void update(Long id, CategorySaveRequestVO requestVO);
+
+    /** 启用或停用报修类型。 */
+    void updateStatus(Long id, Integer status);
+
+    /** 删除未被引用且没有子节点的报修类型。 */
+    void delete(Long id);
 }

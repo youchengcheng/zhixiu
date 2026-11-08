@@ -24,7 +24,7 @@ public final class MqConstants {
     /** SLA 超时延迟消息 */
     public static final String TOPIC_SLA_TIMEOUT = "sla-timeout-topic";
 
-    /** 多通道通知扇出 */
+    /** 通知消息，首期启用 SITE 站内信 */
     public static final String TOPIC_NOTIFICATION = "notification-topic";
 
     /** 操作日志异步落库 */
@@ -32,9 +32,6 @@ public final class MqConstants {
 
     /** 知识向量化、工单总结 */
     public static final String TOPIC_AI_TASK = "ai-task-topic";
-
-    /** 工单事件死信队列（重试耗尽后由 RocketMQ 自动投递） */
-    public static final String DLQ_WORK_ORDER_EVENT = "%DLQ%" + TOPIC_WORK_ORDER_EVENT;
 
     /** 工单事件消费组（顺序消费） */
     public static final String GROUP_ORDER_EVENT = "order-event-consumer-group";
@@ -56,6 +53,12 @@ public final class MqConstants {
 
     /** AI 任务消费组 */
     public static final String GROUP_AI_TASK = "ai-task-consumer-group";
+
+    /** 工单事件死信队列，RocketMQ 按原消费组生成 */
+    public static final String DLQ_WORK_ORDER_EVENT = "%DLQ%" + GROUP_ORDER_EVENT;
+
+    /** 站内信死信队列，RocketMQ 按原消费组生成 */
+    public static final String DLQ_NOTIFY_SITE = "%DLQ%" + GROUP_NOTIFY_SITE;
 
     private MqConstants() {
     }

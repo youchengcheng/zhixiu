@@ -20,9 +20,8 @@ import org.springframework.stereotype.Component;
  * <p>顺序性：生产端以 orderId 作为消息组发送 FIFO 消息，同一工单的事件进入同一队列，
  * 再配合 consumptionThreadCount=1，保证单实例内串行处理，避免通知乱序。</p>
  *
- * <p>幂等性：本消费者只做通知扇出，不回写工单状态，重复消费不会破坏业务数据；
- * 但通知本身未按 eventId 去重，极端重试时可能重复提醒，eventId 可用于日志追踪，
- * 后续可增加幂等表或消息中心去重。</p>
+ * <p>幂等性：原工单事件 eventId 会继续传给通知服务，并与接收人、通道共同派生
+ * 站内通知 eventId；上游事件重投和 notification-topic 重投都会被通知表唯一索引去重。</p>
  *
  * <p>失败处理：消费失败返回 FAILURE，交由 RocketMQ 重试，重试耗尽进
  * {@link MqConstants#DLQ_WORK_ORDER_EVENT}，可人工排查后补偿。</p>
@@ -87,54 +86,55 @@ public class OrderEventConsumer implements RocketMQListener {
         switch (event.eventType()) {
             // 工单创建：提醒管理员及时派单
             case MqConstants.OrderEvent.CREATED -> notificationService.notifyAdmins(
-                    "新报修工单待派单", summary + "已提交，请及时派单。", orderId);
+                    event.eventId(), "新报修工单待派单", summary + "已提交，请及时派单。", orderId);
             // 派单相关事件：可能是超时回退，也可能是新派单
             case MqConstants.OrderEvent.ASSIGNED -> {
                 // 同一 Tag 覆盖「派单」与「超时未接单回退」，按目标状态区分
                 if (OrderStatusEnum.PENDING.getCode().equals(event.toStatus())) {
                     // 已回退待接单池：提醒管理员
-                    notificationService.notifyAdmins("派单超时未接单",
+                    notificationService.notifyAdmins(event.eventId(), "派单超时未接单",
                             summary + "超过接单时限，已回退待接单池。", orderId);
                 } else {
                     // 正常派单：通知被指派的师傅接单
-                    notificationService.notifyWorker(longValue(event, "assignedWorkerId"),
+                    notificationService.notifyWorker(event.eventId(), longValue(event, "assignedWorkerId"),
                             "您有新的维修派单", summary + "已派给您，请及时接单。", orderId);
                 }
             }
             // 师傅接单：告知业主，无需再等待派单
             case MqConstants.OrderEvent.ACCEPTED -> notificationService.notifyOwner(
-                    longValue(event, "ownerId"), "师傅已接单",
+                    event.eventId(), longValue(event, "ownerId"), "师傅已接单",
                     summary + "已由师傅接单，请留意上门时间。", orderId);
             // 师傅到场：告知业主维修即将开始
             case MqConstants.OrderEvent.ARRIVE -> notificationService.notifyOwner(
-                    longValue(event, "ownerId"), "师傅已到场",
+                    event.eventId(), longValue(event, "ownerId"), "师傅已到场",
                     summary + "师傅已到场开始处理。", orderId);
             // 维修暂停：把挂起原因同步给业主
             case MqConstants.OrderEvent.PAUSE -> notificationService.notifyOwner(
-                    longValue(event, "ownerId"), "维修已暂停",
+                    event.eventId(), longValue(event, "ownerId"), "维修已暂停",
                     summary + "暂时挂起，原因：" + text(event, "remark"), orderId);
             // 维修恢复：告知业主继续处理
             case MqConstants.OrderEvent.RESUME -> notificationService.notifyOwner(
-                    longValue(event, "ownerId"), "维修已恢复",
+                    event.eventId(), longValue(event, "ownerId"), "维修已恢复",
                     summary + "已恢复处理。", orderId);
             // 转单申请：需要管理员人工介入
             case MqConstants.OrderEvent.TRANSFER -> notificationService.notifyAdmins(
-                    "师傅申请转单", summary + "师傅申请转单，原因：" + text(event, "remark"), orderId);
+                    event.eventId(), "师傅申请转单",
+                    summary + "师傅申请转单，原因：" + text(event, "remark"), orderId);
             // 完工提交：提醒业主确认并评价
             case MqConstants.OrderEvent.SUBMITTED -> notificationService.notifyOwner(
-                    longValue(event, "ownerId"), "师傅已提交完工",
+                    event.eventId(), longValue(event, "ownerId"), "师傅已提交完工",
                     summary + "已提交完工，请确认并评价。", orderId);
             // 完工确认：告知实际接单师傅
             case MqConstants.OrderEvent.COMPLETED -> notificationService.notifyWorker(
-                    longValue(event, "acceptedWorkerId"), "工单已完工",
+                    event.eventId(), longValue(event, "acceptedWorkerId"), "工单已完工",
                     summary + "已确认完工。", orderId);
             // 工单取消：管理员与已接单师傅都需要知晓，避免继续上门
             case MqConstants.OrderEvent.CANCELED -> {
                 // 工单取消：一并通知管理员
-                notificationService.notifyAdmins("工单已取消",
+                notificationService.notifyAdmins(event.eventId(), "工单已取消",
                         summary + "已取消，原因：" + text(event, "remark"), orderId);
                 // 通知已接单师傅无需继续处理
-                notificationService.notifyWorker(longValue(event, "acceptedWorkerId"),
+                notificationService.notifyWorker(event.eventId(), longValue(event, "acceptedWorkerId"),
                         "工单已取消", summary + "已取消，无需继续处理。", orderId);
             }
             // 未配置通知的事件类型仅记录 debug 日志

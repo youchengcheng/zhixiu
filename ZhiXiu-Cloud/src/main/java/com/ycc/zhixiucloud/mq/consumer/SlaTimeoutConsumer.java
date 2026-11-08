@@ -63,7 +63,9 @@ public class SlaTimeoutConsumer implements RocketMQListener {
             // 仅首次由未超时变为超时时才通知管理员
             if (breached) {
                 // 首次判定超时：升级并通知管理员介入
-                notificationService.notifyAdmins("工单 SLA 超时",
+                // SLA 事件使用工单 ID + 超时类型构造稳定来源标识，重复消费不会重复落库
+                String sourceEventId = "SLA:" + task.orderId() + ":" + task.type();
+                notificationService.notifyAdmins(sourceEventId, "工单 SLA 超时",
                         "工单 " + task.orderId() + " " + typeName(task.type()) + "，请立即介入处理。",
                         task.orderId());
             } else {

@@ -10,6 +10,7 @@ import DictSelect from '@/components/DictSelect.vue'
 import Pagination from '@/components/Pagination.vue'
 import AppSkeleton from '@/components/AppSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import ResetPasswordDialog from '@/components/ResetPasswordDialog.vue'
 import { auditWorker, listWorkerLoad, listWorkers, updateWorkerStatus } from '@/api/worker'
 import { AUDIT_STATUS, WORK_STATUS } from '@/utils/dict'
 
@@ -22,6 +23,9 @@ const loads = ref([])
 const loading = ref(false)
 const failed = ref(false)
 const acting = ref('')
+
+const resetVisible = ref(false)
+const resetTarget = ref(null)
 
 const auditVisible = ref(false)
 const auditTarget = ref(null)
@@ -88,6 +92,18 @@ function onSizeChange(value) {
   page.pageSize = value
   page.pageNum = 1
   load()
+}
+
+function openResetPassword(row) {
+  if (!row.userId) {
+    ElMessage.error('该师傅缺少用户账号标识，无法重置密码')
+    return
+  }
+  resetTarget.value = {
+    id: row.userId,
+    name: row.realName || row.workerNo || '该师傅'
+  }
+  resetVisible.value = true
 }
 
 function loadOf(row) {
@@ -200,70 +216,60 @@ async function onToggleStatus(row, enabled) {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="师傅" min-width="160">
+          <el-table-column label="师傅信息" min-width="240">
             <template #default="{ row }">
               <div class="aworker-cell">
                 <LetterAvatar :name="row.realName" :size="32" />
                 <div class="aworker-cell__text">
                   <span class="aworker-cell__name">{{ row.realName }}</span>
-                  <span class="aworker-cell__sub text-mono">{{ row.workerNo }}</span>
+                  <div class="record-cell__meta">
+                    <span class="text-mono">{{ row.workerNo }}</span>
+                    <span class="text-mono">{{ row.phone || '未填写手机号' }}</span>
+                  </div>
                 </div>
               </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="手机号" width="140">
+          <el-table-column label="技能与负载" min-width="220">
             <template #default="{ row }">
-              <span class="text-mono">{{ row.phone || '-' }}</span>
+              <div class="record-cell">
+                <span class="record-cell__primary aworker-skills">{{ row.skillTags || '暂未填写技能' }}</span>
+                <span class="record-cell__secondary">当前处理 {{ loadOf(row) }} 单</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="技能标签" min-width="180">
+          <el-table-column label="资质与状态" width="200">
             <template #default="{ row }">
-              <span class="aworker-skills">{{ row.skillTags || '-' }}</span>
+              <div class="record-cell__statuses">
+                <StatusTag :status="row.auditStatus ?? 0" :dict="AUDIT_STATUS" :dot="false" />
+                <StatusTag :status="row.workStatus ?? 0" :dict="WORK_STATUS" :dot="false" size="small" />
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="资质" width="100">
+          <el-table-column label="服务评分" width="110" align="right" class-name="cell--number">
             <template #default="{ row }">
-              <StatusTag :status="row.auditStatus ?? 0" :dict="AUDIT_STATUS" :dot="false" size="small" />
+              <div class="record-cell aworker-score">
+                <span class="record-cell__metric">{{ row.avgScore ?? '-' }}</span>
+                <span class="record-cell__secondary">综合评分</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="师傅状态" width="110">
+          <el-table-column label="启用与操作" width="260">
             <template #default="{ row }">
-              <StatusTag :status="row.workStatus ?? 0" :dict="WORK_STATUS" :dot="false" size="small" />
-            </template>
-          </el-table-column>
-
-          <!-- 数值列统一右对齐 + 等宽数字，便于纵向比对 -->
-          <el-table-column label="当前负载" width="100" align="right" class-name="cell--number">
-            <template #default="{ row }">
-              <span class="text-mono aworker-load">{{ loadOf(row) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="评分" width="80" align="right" class-name="cell--number">
-            <template #default="{ row }">
-              <span class="text-mono">{{ row.avgScore ?? '-' }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="启用" width="90">
-            <template #default="{ row }">
-              <el-switch
-                :model-value="row.workStatus !== 4"
-                :loading="acting === row.id"
-                :disabled="row.auditStatus === 0"
-                @change="(value) => onToggleStatus(row, value)"
-              />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="操作" width="100">
-            <template #default="{ row }">
-              <div class="table-actions">
+              <div class="table-actions aworker-actions">
+                <el-switch
+                  :model-value="row.workStatus !== 4"
+                  :loading="acting === row.id"
+                  :disabled="row.auditStatus === 0"
+                  aria-label="启用状态"
+                  @change="(value) => onToggleStatus(row, value)"
+                />
                 <el-button text type="primary" @click="openAudit(row)">审核</el-button>
+                <el-button text type="primary" @click="openResetPassword(row)">重置密码</el-button>
               </div>
             </template>
           </el-table-column>
@@ -311,6 +317,12 @@ async function onToggleStatus(row, enabled) {
         </el-button>
       </template>
     </el-dialog>
+
+    <ResetPasswordDialog
+      v-model="resetVisible"
+      :user-id="resetTarget?.id"
+      :display-name="resetTarget?.name"
+    />
   </div>
 </template>
 
@@ -355,13 +367,15 @@ async function onToggleStatus(row, enabled) {
 }
 
 .aworker-skills {
-  font-size: var(--fs-sm);
-  color: var(--color-text-2);
+  font-size: var(--fs-body);
 }
 
-.aworker-load {
-  font-weight: var(--fw-medium);
-  color: var(--color-text-1);
+.aworker-score {
+  align-items: flex-end;
+}
+
+.aworker-actions {
+  flex-wrap: nowrap;
 }
 
 .aworker-pager {

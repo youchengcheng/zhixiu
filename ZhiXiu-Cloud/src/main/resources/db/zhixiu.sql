@@ -4,7 +4,7 @@
 --  数据库      : zhixiu
 --  数据库版本  : MySQL 8.0
 --  字符集/引擎 : utf8mb4 / InnoDB
---  表数量      : 15 张（业务 12 张 + AI 3 张）
+--  表数量      : 16 张（业务 13 张 + AI 3 张）
 --  设计约定    : 表间均为逻辑外键，不建物理外键约束
 --                主键统一 BIGINT（雪花 ID，MyBatis-Plus ASSIGN_ID）
 --                通用字段 create_time / update_time / deleted（0 正常 1 删除）
@@ -40,12 +40,13 @@ DROP TABLE IF EXISTS `sla_config`;
 DROP TABLE IF EXISTS `announcement`;
 DROP TABLE IF EXISTS `feedback`;
 DROP TABLE IF EXISTS `operation_log`;
+DROP TABLE IF EXISTS `notification`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `role`;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
---  一、业务表（12 张）
+--  一、业务表（13 张）
 -- ============================================================================
 
 -- 2.1 role 角色表 ------------------------------------------------------------
@@ -358,11 +359,33 @@ CREATE TABLE `operation_log` (
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
+-- 2.13 notification 站内通知表 ----------------------------------------------
+-- 设计意图：SITE 通道消息由 MQ 消费后落库；event_id 唯一索引保证重复投递幂等；
+-- receiver_id/is_read/create_time 支撑当前用户列表和未读数量查询，order_id 支撑工单详情跳转。
+CREATE TABLE `notification` (
+  `id`            BIGINT       NOT NULL,
+  `event_id`      VARCHAR(160) NOT NULL COMMENT 'MQ事件幂等标识',
+  `receiver_id`   BIGINT       NOT NULL COMMENT '接收人user.id',
+  `receiver_type` VARCHAR(20)  NOT NULL COMMENT 'OWNER/WORKER/ADMIN',
+  `title`         VARCHAR(100) NOT NULL COMMENT '消息标题',
+  `content`       TEXT         NOT NULL COMMENT '消息正文',
+  `order_id`      BIGINT                DEFAULT NULL COMMENT '关联工单ID',
+  `is_read`       TINYINT      NOT NULL DEFAULT 0 COMMENT '0未读 1已读',
+  `read_time`     DATETIME              DEFAULT NULL COMMENT '阅读时间',
+  `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted`       TINYINT      NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_event_id` (`event_id`),
+  KEY `idx_receiver_read_time` (`receiver_id`,`is_read`,`create_time`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内通知表';
+
 -- ============================================================================
 --  二、AI 表（3 张）
 -- ============================================================================
 
--- 2.13 ai_chat_session AI 会话表 ----------------------------------------------
+-- 2.14 ai_chat_session AI 会话表 ----------------------------------------------
 -- 设计意图：AI 会话主表，一次对话一条记录，title 取首条消息摘要；
 -- resolved 记录会话结局（0 进行中 / 1 自助解决 / 2 转工单），用于 AI 效果统计。
 CREATE TABLE `ai_chat_session` (
@@ -379,7 +402,7 @@ CREATE TABLE `ai_chat_session` (
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI会话表';
 
--- 2.14 ai_chat_message AI 消息表 ----------------------------------------------
+-- 2.15 ai_chat_message AI 消息表 ----------------------------------------------
 -- 设计意图：AI 会话消息明细，sender 区分 USER/AI；
 -- intent 记录识别意图，citations 保存知识库引用，form_draft/filled_slots/missing_slots 支撑工单槽位收集；
 -- prompt_tokens/completion_tokens/cost_ms 用于调用成本与性能统计。
@@ -404,7 +427,7 @@ CREATE TABLE `ai_chat_message` (
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI消息表';
 
--- 2.15 repair_knowledge 维修知识库表 ------------------------------------------
+-- 2.16 repair_knowledge 维修知识库表 ------------------------------------------
 -- 设计意图：维修知识源文档，content 会被分块并向量化后写入 RedisVectorStore；
 -- vectorized 标记是否已完成向量化，version 在内容修改后递增以触发重新向量化；
 -- 向量数据保存在 Redis 中，本表只保存源文档与处理状态。
@@ -460,7 +483,7 @@ INSERT INTO `sla_config` (`id`,`category_id`,`urgency`,`safety_flag`,`response_t
 VALUES (2,NULL,NULL,'涉电',15,120,'ADMIN',100);
 
 -- ============================================================================
---  建库完成：15 张表 + 角色/报修类型/SLA 初始化数据
+--  建库完成：16 张表 + 角色/报修类型/SLA 初始化数据
 --  说明：业主、师傅均为自助注册；管理员账号需另行初始化（密码为 BCrypt 密文）
 --        应用侧库名由 application.yml 的 ${DB_NAME:zhixiu} 决定，与本脚本保持一致
 -- ============================================================================

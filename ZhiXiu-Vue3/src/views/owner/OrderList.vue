@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { ArrowRight, Refresh, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -129,46 +129,60 @@ function goDetail(row) {
       />
 
       <template v-else>
-        <el-table :data="rows" style="width: 100%">
-          <el-table-column label="工单号" width="200">
+        <el-table
+          class="order-table"
+          :data="rows"
+          row-class-name="order-table__row"
+          style="width: 100%"
+          @row-click="goDetail"
+        >
+          <el-table-column label="工单信息" min-width="340">
             <template #default="{ row }">
-              <span class="text-mono order-no">{{ row.orderNo }}</span>
+              <div class="record-cell">
+                <button class="order-title record-cell__primary" type="button" @click.stop="goDetail(row)">
+                  {{ row.title }}
+                </button>
+                <div class="record-cell__meta">
+                  <span class="text-mono order-no">{{ row.orderNo }}</span>
+                  <span>{{ row.categoryName || '未分类' }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="标题" min-width="220">
+          <el-table-column label="状态与优先级" width="220">
             <template #default="{ row }">
-              <button class="order-title" type="button" @click="goDetail(row)">{{ row.title }}</button>
+              <div class="record-cell__statuses">
+                <StatusTag :status="row.status" :dot="false" />
+                <UrgencyTag :urgency="row.urgency" :safety="row.safetyFlag" size="small" />
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="类型" width="120">
-            <template #default="{ row }">{{ row.categoryName || '-' }}</template>
-          </el-table-column>
-
-          <el-table-column label="紧急程度" width="150">
+          <el-table-column label="处理人员" width="180">
             <template #default="{ row }">
-              <UrgencyTag :urgency="row.urgency" :safety="row.safetyFlag" size="small" />
+              <div class="record-cell">
+                <span class="record-cell__primary">{{ row.workerName || '等待物业派单' }}</span>
+                <span class="record-cell__secondary">当前负责人</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="状态" width="120">
-            <template #default="{ row }">
-              <StatusTag :status="row.status" size="small" />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="提交时间" width="140">
+          <el-table-column label="提交时间" width="120">
             <template #default="{ row }">
               <RelativeTime :value="row.createTime" />
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="100">
+          <el-table-column label="操作" width="68" align="center">
             <template #default="{ row }">
-              <div class="table-actions">
-                <el-button text type="primary" @click="goDetail(row)">查看</el-button>
-              </div>
+              <el-button
+                class="order-open"
+                text
+                :icon="ArrowRight"
+                :aria-label="`查看工单：${row.title}`"
+                @click.stop="goDetail(row)"
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -221,7 +235,31 @@ function goDetail(row) {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.order-title:hover {
+.order-title:hover,
+.order-title:focus-visible {
+  color: var(--color-primary);
+}
+
+.order-title:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+
+.order-table :deep(.order-table__row) {
+  cursor: pointer;
+}
+
+.order-table :deep(.order-table__row td.el-table__cell) {
+  padding-block: 18px;
+}
+
+.order-open {
+  color: var(--color-text-3);
+}
+
+.order-open:hover,
+.order-open:focus-visible {
   color: var(--color-primary);
 }
 

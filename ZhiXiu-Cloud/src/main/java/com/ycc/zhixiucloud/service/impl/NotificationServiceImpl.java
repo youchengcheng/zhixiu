@@ -18,16 +18,15 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * 通知服务实现：解析接收人后按通道扇出。
+ * 通知服务实现：解析接收人后投递站内信。
  * 通知是旁路动作，不参与工单事务，失败只记日志。
  *
  * <p>发送策略与失败处理：</p>
  * <ul>
- *   <li>渠道选择：当前业务统一向站内信、短信、推送三个通道各投递一条消息，
- *       不按用户偏好或消息等级裁剪；三条消息进入 notification-topic 下各自
- *       的目的地，由三个独立消费组分别处理，互不阻塞；</li>
+ *   <li>渠道选择：首期只向 SITE 通道投递站内信；短信和推送生产/消费代码保留，
+ *       但在未接入供应商前不参与业务通知；</li>
  *   <li>异步解耦：本类只解析接收人并调用 {@link NotifyProducer} 投递 RocketMQ，
- *       各通道由独立消费者处理（当前消费者为日志占位实现，尚未接入短信/推送服务商），
+ *       SITE 消费者负责幂等落库；短信和推送消费者仍为日志占位，
  *       因此外部通道的耗时和故障不会拖慢工单主流程；</li>
  *   <li>失败处理：本类不声明事务，也不向调用方抛出异常。接收人无法解析时
  *       （师傅不存在、管理员角色未初始化、无可用管理员）记 warn 日志后返回；
@@ -52,7 +51,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final MaintenanceWorkerMapper maintenanceWorkerMapper;
 
     /**
-     * 通知指定业主：以 OWNER 作为接收人类型，向三个通道扇出。
+     * 通知指定业主：以 OWNER 作为接收人类型投递站内信。
      *
      * @param ownerId  业主用户 ID
      * @param title    通知标题
@@ -60,9 +59,9 @@ public class NotificationServiceImpl implements NotificationService {
      * @param orderId  关联工单 ID，可为空
      */
     @Override
-    public void notifyOwner(Long ownerId, String title, String content, Long orderId) {
-        // 接收人类型固定为 OWNER，走统一扇出
-        fanOut(ownerId, OperatorTypeEnum.OWNER.getCode(), title, content, orderId);
+    public void notifyOwner(String sourceEventId, Long ownerId, String title, String content, Long orderId) {
+        // 接收人类型固定为 OWNER，投递站内信
+        sendSite(sourceEventId, ownerId, OperatorTypeEnum.OWNER.getCode(), title, content, orderId);
     }
 
     /**
@@ -78,7 +77,7 @@ public class NotificationServiceImpl implements NotificationService {
      * @param orderId  关联工单 ID，可为空
      */
     @Override
-    public void notifyWorker(Long workerId, String title, String content, Long orderId) {
+    public void notifyWorker(String sourceEventId, Long workerId, String title, String content, Long orderId) {
         // 师傅记录 ID 需先查出档案，才能拿到接收人用户 ID
         MaintenanceWorker worker = workerId == null ? null : maintenanceWorkerMapper.selectById(workerId);
         // 师傅不存在时无法解析接收人
@@ -88,22 +87,21 @@ public class NotificationServiceImpl implements NotificationService {
             return;
         }
         // 用师傅绑定的用户 ID 作为接收人
-        fanOut(worker.getUserId(), OperatorTypeEnum.WORKER.getCode(), title, content, orderId);
+        sendSite(sourceEventId, worker.getUserId(), OperatorTypeEnum.WORKER.getCode(), title, content, orderId);
     }
 
     /**
      * 通知全部可用的管理员账号。
      *
-     * <p>按角色编码 ADMIN 解析角色，只选取账号状态正常的用户，逐个扇出；
-     * 角色未初始化或没有可用管理员时记 warn 日志后返回。每个管理员的三通道
-     * 投递彼此独立，某个接收人失败不会被循环中断。</p>
+     * <p>按角色编码 ADMIN 解析角色，只选取账号状态正常的用户，逐个投递站内信；
+     * 角色未初始化或没有可用管理员时记 warn 日志后返回。</p>
      *
      * @param title   通知标题
      * @param content 通知内容
      * @param orderId 关联工单 ID，可为空
      */
     @Override
-    public void notifyAdmins(String title, String content, Long orderId) {
+    public void notifyAdmins(String sourceEventId, String title, String content, Long orderId) {
         // 按角色编码解析管理员角色，避免硬编码角色 ID
         Role adminRole = roleMapper.selectOne(Wrappers.<Role>lambdaQuery()
                 .eq(Role::getRoleCode, RoleEnum.ADMIN.getCode()));
@@ -125,17 +123,13 @@ public class NotificationServiceImpl implements NotificationService {
         }
         // 遍历管理员列表逐个通知
         for (User admin : admins) {
-            // 逐个管理员扇出三通道
-            fanOut(admin.getId(), OperatorTypeEnum.ADMIN.getCode(), title, content, orderId);
+            // 逐个管理员投递站内信，接收人 ID 参与 eventId 派生，互不冲突
+            sendSite(sourceEventId, admin.getId(), OperatorTypeEnum.ADMIN.getCode(), title, content, orderId);
         }
     }
 
     /**
-     * 三通道扇出：站内信 / 短信 / 推送各投递一条消息。
-     *
-     * <p>三条消息分别带各自的 channel 和相同的业务内容进入 MQ，由三个消费组
-     * 独立消费，因此某通道投递失败不影响另外两条。接收人 ID 为空时生产者会
-     * 直接忽略，本方法无需重复判空。</p>
+     * 投递站内信。接收人 ID 为空时生产者直接忽略。
      *
      * @param receiverId   接收人用户 ID
      * @param receiverType 接收人类型：OWNER / WORKER / ADMIN
@@ -143,12 +137,9 @@ public class NotificationServiceImpl implements NotificationService {
      * @param content      通知内容
      * @param orderId      关联工单 ID，可为空
      */
-    private void fanOut(Long receiverId, String receiverType, String title, String content, Long orderId) {
-        // 站内信通道
-        notifyProducer.sendSite(receiverId, receiverType, title, content, orderId);
-        // 短信通道
-        notifyProducer.sendSms(receiverId, receiverType, title, content, orderId);
-        // 推送通道
-        notifyProducer.sendPush(receiverId, receiverType, title, content, orderId);
+    private void sendSite(String sourceEventId, Long receiverId, String receiverType,
+                          String title, String content, Long orderId) {
+        // 首期只启用站内信通道
+        notifyProducer.sendSite(sourceEventId, receiverId, receiverType, title, content, orderId);
     }
 }

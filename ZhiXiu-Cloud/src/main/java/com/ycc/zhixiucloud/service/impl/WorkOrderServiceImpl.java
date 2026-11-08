@@ -213,6 +213,11 @@ public class WorkOrderServiceImpl implements WorkOrderService {
             // 仅允许选择二级类型，否则拒绝
             throw BizException.of(ResultCode.PARAM_ERROR, "请选择二级报修类型");
         }
+        // 停用分类不能用于新工单，防止绕过前端下拉框直接提交历史分类 ID
+        if (!Integer.valueOf(1).equals(category.getStatus())) {
+            // 分类维护停用后只保留历史展示，不再接受新报修
+            throw BizException.of(ResultCode.CONFLICT, "报修类型已停用，请重新选择");
+        }
 
         // 按类型/紧急度/隐患/影响范围匹配 SLA 配置
         SlaConfig slaConfig = slaService.matchSla(category.getId(), createOrderRequestVO.getUrgency(),

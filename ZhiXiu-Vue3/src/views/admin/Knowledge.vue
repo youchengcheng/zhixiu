@@ -337,42 +337,36 @@ function clearSearch() {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="标题" min-width="240">
+          <el-table-column label="知识条目" min-width="340">
             <template #default="{ row }">
-              <button class="aknow-title" type="button" @click="openEdit(row)">{{ row.title }}</button>
+              <div class="record-cell">
+                <button class="aknow-title record-cell__primary" type="button" @click="openEdit(row)">
+                  {{ row.title }}
+                </button>
+                <div class="record-cell__meta">
+                  <span>{{ row.categoryName || '未关联类型' }}</span>
+                  <span>{{ row.tags || '无标签' }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="关联类型" width="160">
-            <template #default="{ row }">{{ row.categoryName || '-' }}</template>
-          </el-table-column>
-
-          <el-table-column label="标签" min-width="140">
+          <el-table-column label="处理状态" width="220">
             <template #default="{ row }">
-              <span class="aknow-tags">{{ row.tags || '-' }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="向量化" width="110">
-            <template #default="{ row }">
-              <StatusTag
-                :status="row.vectorized ?? 0"
-                :dict="KNOWLEDGE_VECTORIZED"
-                :dot="false"
-                size="small"
-              />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="启用" width="100">
-            <template #default="{ row }">
-              <StatusTag :status="row.status ?? 1" :dict="ENABLED_STATUS" :dot="false" size="small" />
+              <div class="record-cell__statuses">
+                <StatusTag
+                  :status="row.vectorized ?? 0"
+                  :dict="KNOWLEDGE_VECTORIZED"
+                  :dot="false"
+                />
+                <StatusTag :status="row.status ?? 1" :dict="ENABLED_STATUS" :dot="false" size="small" />
+              </div>
             </template>
           </el-table-column>
 
           <el-table-column label="更新时间" width="170">
             <template #default="{ row }">
-              <span class="text-mono">{{ formatDateTime(row.updateTime) }}</span>
+              <span class="record-cell__secondary text-mono">{{ formatDateTime(row.updateTime) }}</span>
             </template>
           </el-table-column>
 
@@ -592,13 +586,15 @@ function clearSearch() {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.aknow-title:hover {
+.aknow-title:hover,
+.aknow-title:focus-visible {
   color: var(--color-primary);
 }
 
-.aknow-tags {
-  font-size: var(--fs-sm);
-  color: var(--color-text-2);
+.aknow-title:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .aknow-pager {
