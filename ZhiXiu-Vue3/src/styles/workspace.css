@@ -114,6 +114,79 @@ html .el-drawer {
   padding-top: 0;
 }
 
+/* 列表信息分组：主信息先被看见，辅助字段保留但降低视觉权重。 */
+.app-shell .record-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-shell .record-cell__primary {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-1);
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .record-cell__secondary {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-3);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .record-cell__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  min-width: 0;
+  color: var(--color-text-3);
+  font-size: var(--fs-sm);
+}
+
+.app-shell .record-cell__meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .record-cell__meta > span + span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-shell .record-cell__meta > span + span::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 1px;
+  height: 12px;
+  margin-right: var(--space-2);
+  background: var(--color-border-strong);
+}
+
+.app-shell .record-cell__statuses {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.app-shell .record-cell__metric {
+  color: var(--color-text-1);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* 账号摘要轻量强调，资料与密码表单沿用普通卡片底色。 */
 .profile-page .profile-account {
   background: var(--color-primary-soft);

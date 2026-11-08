@@ -130,36 +130,46 @@ async function onAccept(row) {
       />
 
       <template v-else>
-        <el-table :data="rows" style="width: 100%">
-          <el-table-column label="工单号" width="200">
+        <el-table
+          class="worder-table"
+          :data="rows"
+          row-class-name="worder-table__row"
+          style="width: 100%"
+          @row-click="goDetail"
+        >
+          <el-table-column label="工单信息" min-width="340">
             <template #default="{ row }">
-              <span class="text-mono worder-no">{{ row.orderNo }}</span>
+              <div class="record-cell">
+                <button class="worder-title record-cell__primary" type="button" @click.stop="goDetail(row)">
+                  {{ row.title }}
+                </button>
+                <div class="record-cell__meta">
+                  <span class="text-mono worder-no">{{ row.orderNo }}</span>
+                  <span>{{ row.categoryName || '未分类' }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="标题" min-width="220">
+          <el-table-column label="服务对象" min-width="260">
             <template #default="{ row }">
-              <button class="worder-title" type="button" @click="goDetail(row)">{{ row.title }}</button>
+              <div class="record-cell">
+                <span class="record-cell__primary">{{ row.ownerName || '未知业主' }}</span>
+                <span class="record-cell__secondary">{{ row.fullAddress || '地址信息未填写' }}</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="类型" width="120">
-            <template #default="{ row }">{{ row.categoryName || '-' }}</template>
-          </el-table-column>
-
-          <el-table-column label="紧急程度" width="150">
+          <el-table-column label="状态与优先级" width="220">
             <template #default="{ row }">
-              <UrgencyTag :urgency="row.urgency" :safety="row.safetyFlag" size="small" />
+              <div class="record-cell__statuses">
+                <StatusTag :status="row.status" :dot="false" />
+                <UrgencyTag :urgency="row.urgency" :safety="row.safetyFlag" size="small" />
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="状态" width="130">
-            <template #default="{ row }">
-              <StatusTag :status="row.status" size="small" />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="提交时间" width="140">
+          <el-table-column label="提交时间" width="120">
             <template #default="{ row }">
               <RelativeTime :value="row.createTime" />
             </template>
@@ -173,11 +183,11 @@ async function onAccept(row) {
                   text
                   type="primary"
                   :loading="accepting === row.id"
-                  @click="onAccept(row)"
+                  @click.stop="onAccept(row)"
                 >
                   接受派单
                 </el-button>
-                <el-button v-else text type="primary" @click="goDetail(row)">处理</el-button>
+                <el-button v-else text type="primary" @click.stop="goDetail(row)">处理</el-button>
               </div>
             </template>
           </el-table-column>
@@ -227,8 +237,23 @@ async function onAccept(row) {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.worder-title:hover {
+.worder-title:hover,
+.worder-title:focus-visible {
   color: var(--color-primary);
+}
+
+.worder-title:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+
+.worder-table :deep(.worder-table__row) {
+  cursor: pointer;
+}
+
+.worder-table :deep(.worder-table__row td.el-table__cell) {
+  padding-block: 18px;
 }
 
 .worder-pager {

@@ -86,16 +86,15 @@ function categoryName(id) {
   return categoryOptions.value.find((item) => item.id === String(id))?.name || id
 }
 
-/** 把四维匹配条件拼成一行可读文案；全为空即全局兜底 */
-function matchText(item) {
+/** 匹配条件拆成主类型与辅助维度，避免四个字段挤在同一行。 */
+function matchConditions(item) {
   const dims = []
-  if (item.categoryId) dims.push(`类型：${categoryName(item.categoryId)}`)
-  if (item.urgency !== null && item.urgency !== undefined) dims.push(`紧急度：${dictText(URGENCY, item.urgency)}`)
-  if (item.safetyFlag) dims.push(`隐患：${item.safetyFlag}`)
+  if (item.urgency !== null && item.urgency !== undefined) dims.push(dictText(URGENCY, item.urgency))
+  if (item.safetyFlag) dims.push(item.safetyFlag)
   if (item.affectScope !== null && item.affectScope !== undefined) {
-    dims.push(`范围：${dictText(AFFECT_SCOPE, item.affectScope)}`)
+    dims.push(dictText(AFFECT_SCOPE, item.affectScope))
   }
-  return dims.length ? dims.join(' · ') : '全局兜底（所有工单）'
+  return dims
 }
 
 /** 全局兜底配置不允许删除（文档 11.5） */
@@ -233,47 +232,47 @@ async function onDelete(item) {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="匹配条件" min-width="280">
+          <el-table-column label="匹配条件" min-width="300">
             <template #default="{ row }">
-              <span :class="{ 'sla-global': isGlobalFallback(row) }">{{ matchText(row) }}</span>
+              <div class="record-cell">
+                <span class="record-cell__primary" :class="{ 'sla-global': isGlobalFallback(row) }">
+                  {{ row.categoryId ? categoryName(row.categoryId) : '全局兜底规则' }}
+                </span>
+                <div v-if="matchConditions(row).length" class="record-cell__meta">
+                  <span v-for="condition in matchConditions(row)" :key="condition">{{ condition }}</span>
+                </div>
+                <span v-else class="record-cell__secondary">适用于所有工单</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="响应超时" width="120">
+          <el-table-column label="时限设置" width="220">
             <template #default="{ row }">
-              <span class="text-mono">{{ formatMinutes(row.responseTimeout) }}</span>
+              <div class="record-cell">
+                <span class="record-cell__primary text-mono">响应 {{ formatMinutes(row.responseTimeout) }}</span>
+                <span class="record-cell__secondary text-mono">处理 {{ formatMinutes(row.handleTimeout) }}</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="处理超时" width="120">
+          <el-table-column label="升级策略" width="190">
             <template #default="{ row }">
-              <span class="text-mono">{{ formatMinutes(row.handleTimeout) }}</span>
+              <div class="record-cell">
+                <span class="record-cell__primary">通知 {{ dictText(ROLE, row.escalateTo, '-') }}</span>
+                <span class="record-cell__secondary">优先级权重 {{ row.priorityWeight ?? 0 }}</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="升级通知" width="120">
-            <template #default="{ row }">{{ dictText(ROLE, row.escalateTo, '-') }}</template>
-          </el-table-column>
-
-          <el-table-column label="优先级权重" width="110">
+          <el-table-column label="状态与操作" width="220">
             <template #default="{ row }">
-              <span class="text-mono">{{ row.priorityWeight ?? 0 }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-switch
-                :model-value="row.enabled === 1"
-                :loading="acting === row.id"
-                @change="(value) => onToggleEnabled(row, value)"
-              />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="操作" width="120">
-            <template #default="{ row }">
-              <div class="table-actions">
+              <div class="table-actions sla-actions">
+                <el-switch
+                  :model-value="row.enabled === 1"
+                  :loading="acting === row.id"
+                  aria-label="规则启用状态"
+                  @change="(value) => onToggleEnabled(row, value)"
+                />
                 <el-button text type="primary" @click="openEdit(row)">编辑</el-button>
                 <el-button
                   text
@@ -369,6 +368,10 @@ async function onDelete(item) {
 
 .sla-global {
   color: var(--color-text-2);
+}
+
+.sla-actions {
+  flex-wrap: nowrap;
 }
 
 .sla-form__section {

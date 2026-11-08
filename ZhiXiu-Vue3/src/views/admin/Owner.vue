@@ -10,6 +10,7 @@ import DictSelect from '@/components/DictSelect.vue'
 import Pagination from '@/components/Pagination.vue'
 import AppSkeleton from '@/components/AppSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import ResetPasswordDialog from '@/components/ResetPasswordDialog.vue'
 import { illustrations } from '@/assets'
 import {
   createOwnerProperty,
@@ -30,6 +31,9 @@ const rows = ref([])
 const loading = ref(false)
 const failed = ref(false)
 const acting = ref('')
+
+const resetVisible = ref(false)
+const resetTarget = ref(null)
 
 // 房产抽屉
 const drawerVisible = ref(false)
@@ -103,6 +107,14 @@ function onSizeChange(value) {
   page.pageSize = value
   page.pageNum = 1
   load()
+}
+
+function openResetPassword(row) {
+  resetTarget.value = {
+    id: row.id || row.userId,
+    name: row.realName || row.username || '该业主'
+  }
+  resetVisible.value = true
 }
 
 // ---------- 启用 / 禁用 ----------
@@ -276,51 +288,42 @@ async function onDeleteProperty(item) {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="业主" min-width="170">
+          <el-table-column label="业主信息" min-width="280">
             <template #default="{ row }">
               <div class="aowner-cell">
                 <!-- 有上传头像时显示图片，没有时回退姓名首字 -->
                 <LetterAvatar :name="row.realName || row.username" :src="row.avatar" :size="32" />
                 <div class="aowner-cell__text">
                   <span class="aowner-cell__name">{{ row.realName || row.username }}</span>
-                  <span class="aowner-cell__sub text-mono">{{ row.username }}</span>
+                  <div class="record-cell__meta">
+                    <span class="text-mono">{{ row.username }}</span>
+                    <span class="text-mono">{{ row.phone || '未填写手机号' }}</span>
+                  </div>
                 </div>
               </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="手机号" width="150">
+          <el-table-column label="账户状态" min-width="220">
             <template #default="{ row }">
-              <span class="text-mono">{{ row.phone || '-' }}</span>
+              <div class="record-cell">
+                <StatusTag :status="row.status ?? 1" :dict="USER_STATUS" :dot="false" />
+                <span class="record-cell__secondary text-mono">注册于 {{ formatDateTime(row.createTime) }}</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="状态" width="100">
+          <el-table-column label="启用与操作" width="270">
             <template #default="{ row }">
-              <StatusTag :status="row.status ?? 1" :dict="USER_STATUS" :dot="false" size="small" />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="注册时间" width="170">
-            <template #default="{ row }">
-              <span class="text-mono">{{ formatDateTime(row.createTime) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="启用" width="90">
-            <template #default="{ row }">
-              <el-switch
-                :model-value="(row.status ?? 1) === 1"
-                :loading="acting === (row.id || row.userId)"
-                @change="(value) => onToggleStatus(row, value)"
-              />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="操作" width="100">
-            <template #default="{ row }">
-              <div class="table-actions">
+              <div class="table-actions aowner-actions">
+                <el-switch
+                  :model-value="(row.status ?? 1) === 1"
+                  :loading="acting === (row.id || row.userId)"
+                  aria-label="启用状态"
+                  @change="(value) => onToggleStatus(row, value)"
+                />
                 <el-button text type="primary" @click="openProperties(row)">房产</el-button>
+                <el-button text type="primary" @click="openResetPassword(row)">重置密码</el-button>
               </div>
             </template>
           </el-table-column>
@@ -417,6 +420,12 @@ async function onDeleteProperty(item) {
         <el-button type="primary" :loading="propertySubmitting" @click="submitProperty">保存</el-button>
       </template>
     </el-dialog>
+
+    <ResetPasswordDialog
+      v-model="resetVisible"
+      :user-id="resetTarget?.id"
+      :display-name="resetTarget?.name"
+    />
   </div>
 </template>
 
@@ -455,9 +464,8 @@ async function onDeleteProperty(item) {
   color: var(--color-text-1);
 }
 
-.aowner-cell__sub {
-  font-size: var(--fs-xs);
-  color: var(--color-text-3);
+.aowner-actions {
+  flex-wrap: nowrap;
 }
 
 .aowner-pager {

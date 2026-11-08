@@ -78,9 +78,9 @@ public class ApiLogAspect {
         // 目标方法名
         String requestMethod = pjp.getSignature().getName();
 
-        // 打印请求开始日志，含入参
+        // 打印请求开始日志，入参先脱敏，避免密码等敏感字段进入普通文件日志
         log.info("====== 请求开始: [{}], 入参: {}, 请求类: {}, 请求方法: {} =================================== ",
-                requestUri, toJson(pjp.getArgs()), requestClass, requestMethod);
+                requestUri, maskParams(pjp.getArgs()), requestClass, requestMethod);
 
         // 记录起始时间，用于统计耗时
         long start = System.currentTimeMillis();

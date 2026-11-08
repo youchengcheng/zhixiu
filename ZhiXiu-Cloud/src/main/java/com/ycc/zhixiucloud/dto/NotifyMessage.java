@@ -1,11 +1,10 @@
 package com.ycc.zhixiucloud.dto;
 
 /**
- * 通知消息体：notification-topic 的载荷，按 channel 扇出到站内信 / 短信 / 推送三个消费组。
+ * 通知消息体：notification-topic 的载荷，按 channel 路由到对应消费组。
  *
- * <p>一次业务通知会由 NotifyProducer 为每个通道各发一条消息（Tag=channel），
- * 三条消息各自生成 eventId；消费端只做对应通道的发送，失败由 RocketMQ 重试。
- * eventId 当前用于日志追踪，并预留给后续消息中心/推送回执去重。</p>
+ * <p>首期只启用 SITE 站内信通道。SITE 的 eventId 由原业务事件、接收人和通道共同派生，
+ * 消费端以 notification 表唯一索引去重；消费失败由 RocketMQ 重试。</p>
  *
  * @param eventId      事件 ID（全局唯一，便于幂等）
  * @param channel      SITE / SMS / PUSH，取值见 MqConstants.Notify

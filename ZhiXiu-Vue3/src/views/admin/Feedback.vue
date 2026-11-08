@@ -154,41 +154,37 @@ async function submitReply() {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="标题" min-width="200">
+          <el-table-column label="反馈信息" min-width="300">
             <template #default="{ row }">
-              <button class="afb-title" type="button" @click="openReply(row)">{{ row.title }}</button>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="提交人" width="150">
-            <template #default="{ row }">
-              <div class="afb-user">
-                <span>{{ row.userName || '-' }}</span>
-                <span class="afb-user__role">{{ dictText(ROLE, row.userRole, '-') }}</span>
+              <div class="record-cell">
+                <button class="afb-title record-cell__primary" type="button" @click="openReply(row)">
+                  {{ row.title }}
+                </button>
+                <StatusTag :status="row.type" :dict="FEEDBACK_TYPE" :dot="false" size="small" />
               </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="类型" width="110">
+          <el-table-column label="提交人" width="200">
             <template #default="{ row }">
-              <StatusTag :status="row.type" :dict="FEEDBACK_TYPE" :dot="false" size="small" />
+              <div class="record-cell">
+                <span class="record-cell__primary">{{ row.userName || '未知用户' }}</span>
+                <span class="record-cell__secondary">{{ dictText(ROLE, row.userRole, '未知角色') }}</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="状态" width="100">
+          <el-table-column label="处理状态" min-width="300">
             <template #default="{ row }">
-              <StatusTag :status="row.status ?? 0" :dict="FEEDBACK_STATUS" :dot="false" size="small" />
+              <div class="record-cell">
+                <StatusTag :status="row.status ?? 0" :dict="FEEDBACK_STATUS" :dot="false" />
+                <span v-if="row.reply" class="record-cell__secondary afb-reply">{{ row.reply }}</span>
+                <span v-else class="record-cell__secondary afb-reply--none">尚未回复</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="回复状态" min-width="180">
-            <template #default="{ row }">
-              <span v-if="row.reply" class="afb-reply truncate">{{ row.reply }}</span>
-              <span v-else class="afb-reply--none">尚未回复</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="提交时间" width="140">
+          <el-table-column label="提交时间" width="120">
             <template #default="{ row }">
               <RelativeTime :value="row.createTime" />
             </template>
@@ -290,29 +286,23 @@ async function submitReply() {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.afb-title:hover {
+.afb-title:hover,
+.afb-title:focus-visible {
   color: var(--color-primary);
 }
 
-.afb-user {
-  display: flex;
-  flex-direction: column;
-}
-
-.afb-user__role {
-  font-size: var(--fs-xs);
-  color: var(--color-text-3);
+.afb-title:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .afb-reply {
   display: block;
   max-width: 100%;
-  font-size: var(--fs-sm);
-  color: var(--color-text-2);
 }
 
 .afb-reply--none {
-  font-size: var(--fs-sm);
   color: var(--color-text-disabled);
 }
 

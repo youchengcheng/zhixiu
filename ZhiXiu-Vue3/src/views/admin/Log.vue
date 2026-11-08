@@ -163,9 +163,12 @@ function operatorText(row) {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="时间" width="170">
+          <el-table-column label="操作记录" min-width="260">
             <template #default="{ row }">
-              <span class="text-mono alog-time">{{ formatDateTime(row.createTime) }}</span>
+              <div class="record-cell">
+                <span class="record-cell__primary">{{ row.action || '未命名操作' }}</span>
+                <span class="record-cell__secondary">{{ row.module || '未分类模块' }}</span>
+              </div>
             </template>
           </el-table-column>
 
@@ -175,38 +178,32 @@ function operatorText(row) {
             </template>
           </el-table-column>
 
-          <el-table-column label="模块" width="120">
-            <template #default="{ row }">{{ row.module || '-' }}</template>
-          </el-table-column>
-
-          <el-table-column label="操作" min-width="140">
-            <template #default="{ row }">{{ row.action || '-' }}</template>
-          </el-table-column>
-
-          <el-table-column label="接口" min-width="240">
+          <el-table-column label="请求信息" min-width="360">
             <template #default="{ row }">
-              <span class="alog-url text-mono">
-                <span v-if="row.method" class="alog-method">{{ row.method }}</span>
-                {{ row.url || '-' }}
-              </span>
+              <div class="record-cell">
+                <span class="alog-url text-mono record-cell__primary">
+                  <span v-if="row.method" class="alog-method">{{ row.method }}</span>
+                  {{ row.url || '无接口地址' }}
+                </span>
+                <span class="record-cell__secondary text-mono">IP {{ row.ip || '-' }}</span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="IP" width="130">
+          <el-table-column label="执行结果" width="170">
             <template #default="{ row }">
-              <span class="text-mono">{{ row.ip || '-' }}</span>
+              <div class="record-cell">
+                <StatusTag :status="row.result ?? 1" :dict="LOG_RESULT" :dot="false" />
+                <span class="record-cell__secondary text-mono">
+                  {{ row.costTime != null ? `${row.costTime} ms` : '未记录耗时' }}
+                </span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="结果" width="90">
+          <el-table-column label="发生时间" width="170">
             <template #default="{ row }">
-              <StatusTag :status="row.result ?? 1" :dict="LOG_RESULT" :dot="false" size="small" />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="耗时" width="90" align="right" class-name="cell--number">
-            <template #default="{ row }">
-              <span class="text-mono">{{ row.costTime != null ? `${row.costTime} ms` : '-' }}</span>
+              <span class="text-mono alog-time">{{ formatDateTime(row.createTime) }}</span>
             </template>
           </el-table-column>
 

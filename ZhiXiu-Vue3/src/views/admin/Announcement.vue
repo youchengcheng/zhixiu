@@ -214,42 +214,38 @@ async function onDelete(item) {
 
       <template v-else>
         <el-table :data="rows" style="width: 100%">
-          <el-table-column label="标题" min-width="240">
+          <el-table-column label="公告信息" min-width="360">
             <template #default="{ row }">
-              <button class="aann-title" type="button" @click="openPreview(row)">
-                <span v-if="row.isTop === 1" class="aann-top">置顶</span>
-                {{ row.title }}
-              </button>
+              <div class="record-cell">
+                <button class="aann-title record-cell__primary" type="button" @click="openPreview(row)">
+                  <span v-if="row.isTop === 1" class="aann-top">置顶</span>
+                  {{ row.title }}
+                </button>
+                <div class="record-cell__statuses">
+                  <StatusTag :status="row.type" :dict="ANNOUNCEMENT_TYPE" :dot="false" size="small" />
+                  <span class="record-cell__secondary">投放至 {{ dictText(ANNOUNCEMENT_TARGET, row.targetRole) }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="类型" width="110">
+          <el-table-column label="发布状态" width="220">
             <template #default="{ row }">
-              <StatusTag :status="row.type" :dict="ANNOUNCEMENT_TYPE" :dot="false" size="small" />
+              <div class="record-cell">
+                <StatusTag :status="row.status ?? 0" :dict="ANNOUNCEMENT_STATUS" :dot="false" />
+                <span class="record-cell__secondary">
+                  <RelativeTime :value="row.publishTime" fallback="尚未发布" />
+                </span>
+              </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="投放范围" width="110">
+          <el-table-column label="阅读数据" width="110" align="right" class-name="cell--number">
             <template #default="{ row }">
-              {{ dictText(ANNOUNCEMENT_TARGET, row.targetRole) }}
-            </template>
-          </el-table-column>
-
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <StatusTag :status="row.status ?? 0" :dict="ANNOUNCEMENT_STATUS" :dot="false" size="small" />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="发布时间" width="150">
-            <template #default="{ row }">
-              <RelativeTime :value="row.publishTime" fallback="尚未发布" />
-            </template>
-          </el-table-column>
-
-          <el-table-column label="阅读" width="80" align="right" class-name="cell--number">
-            <template #default="{ row }">
-              <span class="text-mono">{{ row.viewCount ?? 0 }}</span>
+              <div class="record-cell aann-views">
+                <span class="record-cell__metric">{{ row.viewCount ?? 0 }}</span>
+                <span class="record-cell__secondary">次阅读</span>
+              </div>
             </template>
           </el-table-column>
 
@@ -387,8 +383,15 @@ async function onDelete(item) {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.aann-title:hover {
+.aann-title:hover,
+.aann-title:focus-visible {
   color: var(--color-primary);
+}
+
+.aann-title:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .aann-top {
@@ -399,6 +402,10 @@ async function onDelete(item) {
   color: var(--color-primary);
   font-size: 11px;
   line-height: 18px;
+}
+
+.aann-views {
+  align-items: flex-end;
 }
 
 .aann-pager {

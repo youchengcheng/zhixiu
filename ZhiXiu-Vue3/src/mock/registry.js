@@ -1,6 +1,7 @@
 // Mock 路由注册表：新增模块时在这里合并对应 handlers 即可
 // 注意（阶段二起）：只有这里注册过的接口才由 mock 接管，未注册的会透传真实后端
 import { aiHandlers } from './handlers/ai'
+import { adminUserHandlers } from './handlers/adminUser'
 import { announcementHandlers } from './handlers/announcement'
 import { authHandlers } from './handlers/auth'
 import { categoryHandlers } from './handlers/category'
@@ -8,13 +9,16 @@ import { feedbackHandlers } from './handlers/feedback'
 import { fileHandlers } from './handlers/file'
 import { knowledgeHandlers } from './handlers/knowledge'
 import { logHandlers } from './handlers/log'
+import { notificationHandlers } from './handlers/notification'
 import { statisticsHandlers } from './handlers/statistics'
 import { userHandlers } from './handlers/user'
 
 export const routes = [
   ...authHandlers,
   ...userHandlers,
+  ...adminUserHandlers,
   ...categoryHandlers,
+  ...notificationHandlers,
   ...announcementHandlers,
   ...feedbackHandlers,
   ...aiHandlers,
