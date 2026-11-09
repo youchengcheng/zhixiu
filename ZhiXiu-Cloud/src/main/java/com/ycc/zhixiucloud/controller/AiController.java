@@ -42,8 +42,8 @@ import java.util.List;
 @PreAuthorize("hasRole('OWNER')")
 public class AiController {
 
-    /** SSE 连接超时（毫秒），需大于 AI 首 Token 返回时间 */
-    private static final long SSE_TIMEOUT_MILLIS = 60000L;
+    /** SSE 连接超时（毫秒），需覆盖长会话的工单草稿结构化抽取 */
+    private static final long SSE_TIMEOUT_MILLIS = 120000L;
 
     /** 智能助手业务服务：会话、RAG 检索、流式对话与草稿转工单 */
     private final AiAssistantService aiAssistantService;
@@ -60,7 +60,7 @@ public class AiController {
     @ApiLog(module = "AI助手", action = "发送消息")
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody AiChatRequestVO requestVO) {
-        // 建立 SSE 连接并设置 60 秒超时；客户端断开或超时由容器触发回调
+        // 建立 SSE 连接并设置 120 秒超时；客户端断开或超时由容器触发回调
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
         // 服务层在异步线程中按 message/intent/citations/slot/followup/draft/done/error 事件推送
         aiAssistantService.chat(requestVO.getSessionId(), requestVO, emitter);

@@ -2,7 +2,7 @@
    16px 用于表面，8px 用于控件，6px 用于状态标签。 */
 .app-shell.app-shell--owner .layout-page {
   max-width: 1280px;
-  padding: 36px 40px 48px;
+  padding: 28px 40px 48px;
   gap: 28px;
 }
 
@@ -241,8 +241,8 @@
 .app-shell .ai-page .ai-session.is-active { background: var(--color-primary-soft); }
 .app-shell .ai-page .ai-chat { box-shadow: var(--shadow-sm); }
 .app-shell .ai-page .ai-chat__list { padding: 28px; background: var(--color-bg-card); }
-.app-shell .ai-page .ai-composer { background: var(--color-bg-card); padding: 20px 24px; }
-.app-shell .ai-page .ai-composer__row { padding: 8px; background: var(--color-bg-page); border-radius: var(--radius-lg); }
+.app-shell .ai-page .ai-composer { background: var(--color-bg-card); padding: 6px 24px; }
+.app-shell .ai-page .ai-composer__row { padding: 2.4px 8px; background: var(--color-bg-page); border-radius: var(--radius-lg); }
 
 /* 认证页：拆开原来包裹全部内容的大卡片，让故事和表单独立。 */
 .auth-page__header { max-width: 1280px; border-bottom: 1px solid var(--auth-border); }
@@ -286,7 +286,7 @@
 
 @media (max-width: 767px) {
   .app-shell .worker-pending .pending-card__meta { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .app-shell.app-shell--owner .layout-page { padding: 24px 16px 32px; gap: 24px; }
+  .app-shell.app-shell--owner .layout-page { padding: 16px 16px 32px; gap: 24px; }
   .app-shell .owner-home .home-welcome { grid-template-columns: minmax(0, 1fr); min-height: auto; }
   .app-shell .home-welcome__copy { padding: 26px 24px; }
   .app-shell .home-welcome__copy h2 { font-size: 26px; }
@@ -317,7 +317,7 @@
   .app-shell .ai-page .ai-layout, .app-shell .ai-page .ai-layout.has-draft { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .app-shell .ai-page .ai-draft { grid-column: auto; }
   .app-shell .ai-page .ai-chat__list { padding: 16px; }
-  .app-shell .ai-page .ai-composer { padding: 16px; }
+  .app-shell .ai-page .ai-composer { padding: 4.8px 16px; }
   .app-shell .ai-page .ai-brand { padding: 0 0 16px; }
   .auth-page__body, .auth-page--register .auth-page__body { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 24px; padding: 24px 0 0; }
   .auth-story, .auth-page--register .auth-story { position: static; padding: 0 8px; }

@@ -11,6 +11,8 @@
 !/ZhiXiu-Cloud/
 !/ZhiXiu-Vue3/
 
+！
+
 # ========== 工程内非交付内容 ==========
 # AI 协作约定文件（前后端各自的 AGENTS.md）
 **/AGENTS.md
@@ -143,6 +145,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
 # 测试覆盖率
 coverage/
 *.lcov

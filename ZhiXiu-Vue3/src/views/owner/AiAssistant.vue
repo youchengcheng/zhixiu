@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CircleClose, Delete, Document, Plus, Promotion } from '@element-plus/icons-vue'
@@ -21,6 +21,8 @@ import { chatStream } from '@/utils/sse'
 import { useUserStore } from '@/stores/user'
 import { AFFECT_SCOPE, SAFETY_FLAGS, URGENCY, dictOptions } from '@/utils/dict'
 import { formatDateTime } from '@/utils/format'
+
+defineOptions({ name: 'OwnerAiAssistant' })
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -44,6 +46,7 @@ const streamText = ref('')
 const streamIntent = ref('')
 const streamCitations = ref([])
 const streamSlots = ref({ filled: [], missing: [] })
+const streamSessionId = ref('')
 let abortStream = null
 let streamVersion = 0
 let disposed = false
@@ -93,12 +96,17 @@ const activeSession = computed(
   () => sessions.value.find((item) => String(item.sessionId) === activeSessionId.value) || null
 )
 const busy = computed(
-  () => streaming.value || creatingSession.value || messagesLoading.value || confirming.value || deletingSession.value
+  () => creatingSession.value || messagesLoading.value || confirming.value || deletingSession.value
+)
+const activeStreaming = computed(
+  () => streaming.value && streamSessionId.value === activeSessionId.value
 )
 const canSend = computed(
-  () => input.value.trim().length > 0 && !busy.value && sessionResolved.value === 0
+  () => input.value.trim().length > 0 && !streaming.value && !busy.value && sessionResolved.value === 0
 )
-const canStop = computed(() => streaming.value && ['CHAT', 'UNRESOLVED'].includes(streamAction.value))
+const canStop = computed(
+  () => activeStreaming.value && ['CHAT', 'UNRESOLVED', 'GENERATE_DRAFT'].includes(streamAction.value)
+)
 const streamHint = computed(() => {
   if (streamAction.value === 'RESOLVED') return '正在记录反馈…'
   if (streamAction.value === 'GENERATE_DRAFT') return '正在整理草稿…'
@@ -115,6 +123,12 @@ const draftSeconds = computed(() =>
 )
 const hasValidDraft = computed(() => Boolean(draft.value) && draftSeconds.value > 0 && sessionResolved.value === 0)
 const draftExpired = computed(() => Boolean(draft.value) && draftSeconds.value === 0)
+const hasRepairAnswer = computed(() =>
+  ['TROUBLESHOOT', 'FILL_FORM'].includes(latestAnswer.value?.intent)
+)
+const canGenerateDraft = computed(() =>
+  hasRepairAnswer.value && !hasValidDraft.value
+)
 const draftCountdown = computed(() => {
   const minutes = Math.floor(draftSeconds.value / 60)
   const seconds = draftSeconds.value % 60
@@ -134,6 +148,7 @@ function resetStreamState() {
   streamIntent.value = ''
   streamCitations.value = []
   streamSlots.value = { filled: [], missing: [] }
+  streamSessionId.value = ''
   abortStream = null
 }
 
@@ -143,12 +158,12 @@ function clearCurrentDraft() {
   draftOpen.value = false
 }
 
-function resetConversation() {
+function resetConversation(preserveStream = false) {
   messages.value = []
   sessionResolved.value = 0
   submittedOrder.value = null
   clearCurrentDraft()
-  resetStreamState()
+  if (!preserveStream) resetStreamState()
 }
 
 async function rememberSession(sessionId) {
@@ -170,6 +185,14 @@ async function loadSessions() {
   }
 }
 
+function findListedSession(sessionId) {
+  return sessions.value.find((item) => String(item.sessionId) === String(sessionId)) || null
+}
+
+async function ensureSessionListed(sessionId) {
+  if (sessionId && !findListedSession(sessionId)) await loadSessions()
+}
+
 async function loadConversation(sessionId) {
   messagesLoading.value = true
   try {
@@ -189,9 +212,9 @@ async function loadConversation(sessionId) {
 }
 
 async function selectSession(sessionId) {
-  if (busy.value || String(sessionId) === activeSessionId.value) return
+  if (String(sessionId) === activeSessionId.value) return
   activeSessionId.value = String(sessionId)
-  resetConversation()
+  resetConversation(true)
   sessionResolved.value = Number(activeSession.value?.resolved || 0)
   submittedOrder.value = activeSession.value?.orderId ? activeSession.value : null
   historyOpen.value = false
@@ -203,25 +226,29 @@ async function selectSession(sessionId) {
 
 // 失败后恢复服务端记录，避免未完成的本地消息变成可操作回答。
 async function recoverConversation(sessionId) {
-  messagesLoading.value = true
-  await loadSessions()
+  await ensureSessionListed(sessionId)
   if (disposed || sessionId !== activeSessionId.value) return
+  messagesLoading.value = true
   sessionResolved.value = Number(activeSession.value?.resolved ?? sessionResolved.value)
   submittedOrder.value = activeSession.value?.orderId ? activeSession.value : submittedOrder.value
   await loadConversation(sessionId)
 }
 
 async function createNewSession() {
-  if (busy.value || (!activeSessionId.value && !messages.value.length)) return
+  if (!activeSessionId.value && !messages.value.length) return
   activeSessionId.value = ''
-  resetConversation()
+  resetConversation(true)
   input.value = ''
   historyOpen.value = false
   await rememberSession('')
 }
 
 async function onDeleteSession(session) {
-  if (busy.value) return
+  if (deletingSession.value) return
+  if (streaming.value && String(session.sessionId) === streamSessionId.value) {
+    ElMessage.warning('该会话正在生成内容，请先返回会话并停止生成')
+    return
+  }
   deletingSession.value = true
   let deleted = false
   try {
@@ -246,10 +273,11 @@ async function onDeleteSession(session) {
 }
 
 function onStreamEvent(eventName, data, sessionId) {
+  const isActiveSession = sessionId === activeSessionId.value
   switch (eventName) {
     case 'message':
       streamText.value += data?.delta || ''
-      scrollToBottom()
+      if (isActiveSession) scrollToBottom()
       break
     case 'intent':
       streamIntent.value = data?.intent || ''
@@ -262,10 +290,10 @@ function onStreamEvent(eventName, data, sessionId) {
       break
     case 'followup':
       if (data?.question) streamText.value += '\n\n' + data.question
-      scrollToBottom()
+      if (isActiveSession) scrollToBottom()
       break
     case 'draft':
-      applyDraft(data)
+      if (isActiveSession) applyDraft(data)
       break
     case 'done':
       finalizeStream(data, sessionId)
@@ -283,8 +311,11 @@ function finalizeStream(data, sessionId) {
     failStream({ message: '回答未完整结束，请重试。' }, sessionId)
     return
   }
+  const isActiveSession = sessionId === activeSessionId.value
+  const listedSession = findListedSession(sessionId)
+  const nextResolved = Number(data.sessionResolved ?? (data.resolved ? 1 : 0))
   const content = streamText.value.trim()
-  if (content) {
+  if (content && isActiveSession) {
     const record = {
       id: String(data.messageId),
       sender: 'AI',
@@ -297,12 +328,15 @@ function finalizeStream(data, sessionId) {
     if (existing) Object.assign(existing, record)
     else messages.value.push(record)
   }
-  sessionResolved.value = Number(data.sessionResolved ?? (data.resolved ? 1 : 0))
-  if (sessionResolved.value !== 0) clearCurrentDraft()
-  else if (data.hasDraft === false && draft.value) draftDeadline.value = 0
+  if (listedSession) listedSession.resolved = nextResolved
+  if (isActiveSession) {
+    sessionResolved.value = nextResolved
+    if (sessionResolved.value !== 0) clearCurrentDraft()
+    else if (data.hasDraft === false && draft.value) draftDeadline.value = 0
+  }
   resetStreamState()
-  scrollToBottom()
-  loadSessions()
+  if (isActiveSession) scrollToBottom()
+  if (!listedSession) ensureSessionListed(sessionId)
 }
 
 async function failStream(error, sessionId) {
@@ -315,11 +349,13 @@ async function failStream(error, sessionId) {
 }
 
 function startStream(action, content = '', messageId) {
+  if (streaming.value) return
   const sessionId = activeSessionId.value
   const version = ++streamVersion
   resetStreamState()
   streaming.value = true
   streamAction.value = action
+  streamSessionId.value = sessionId
   if (action === 'CHAT' || action === 'UNRESOLVED') {
     messages.value.push({
       id: 'local-' + Date.now() + '-u',
@@ -374,7 +410,7 @@ async function sendMessage() {
 }
 
 function onAnswerAction(action) {
-  if (busy.value || sessionResolved.value !== 0 || !latestAnswer.value) return
+  if (streaming.value || busy.value || sessionResolved.value !== 0 || !hasRepairAnswer.value) return
   const content = action === 'UNRESOLVED'
     ? '问题还没有解决，请提供其他排查方案，并询问还需要哪些详细信息。'
     : ''
@@ -383,6 +419,7 @@ function onAnswerAction(action) {
 
 function stopStream() {
   if (!canStop.value) return
+  const sessionId = streamSessionId.value
   streamVersion += 1
   abortStream?.()
   const content = streamText.value.trim()
@@ -397,11 +434,11 @@ function stopStream() {
   }
   resetStreamState()
   scrollToBottom()
-  loadSessions()
+  ensureSessionListed(sessionId)
 }
 
 function onComposerKeydown(event) {
-  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && canSend.value) {
     event.preventDefault()
     sendMessage()
   }
@@ -522,6 +559,10 @@ onMounted(async () => {
   if (session) await selectSession(session.sessionId)
 })
 
+onActivated(() => {
+  scrollToBottom()
+})
+
 onBeforeUnmount(() => {
   disposed = true
   streamVersion += 1
@@ -539,7 +580,7 @@ onBeforeUnmount(() => {
         <div class="ai-brand">
           <h1 class="ai-brand__title">智能维修助手</h1>
           <p class="ai-brand__desc">先获取排查方案，反馈是否解决；需要报修时再生成工单草稿</p>
-          <el-button type="primary" :icon="Plus" class="ai-brand__new" :disabled="busy" @click="createNewSession">
+          <el-button type="primary" :icon="Plus" class="ai-brand__new" @click="createNewSession">
             新建会话
           </el-button>
         </div>
@@ -568,17 +609,17 @@ onBeforeUnmount(() => {
               class="ai-session"
               :class="{ 'is-active': item.sessionId === activeSessionId }"
             >
-              <button class="ai-session__main" type="button" :disabled="busy" @click="selectSession(item.sessionId)">
+              <button class="ai-session__main" type="button" @click="selectSession(item.sessionId)">
                 <span class="ai-session__title truncate">{{ item.title }}</span>
                 <span class="ai-session__meta">
                   {{ item.messageCount }} 条 · {{ item.updateTime?.slice(5, 16) || '' }}
+                  <template v-if="streaming && String(item.sessionId) === streamSessionId"> · 正在生成</template>
                 </span>
               </button>
               <button
                 class="ai-session__delete"
                 type="button"
                 aria-label="删除会话"
-                :disabled="busy"
                 @click.stop="onDeleteSession(item)"
               >
                 <el-icon><Delete /></el-icon>
@@ -604,7 +645,7 @@ onBeforeUnmount(() => {
             >
               查看工单
             </el-button>
-            <span v-if="streaming" class="ai-panel__hint" role="status">{{ streamHint }}</span>
+            <span v-if="activeStreaming" class="ai-panel__hint" role="status">{{ streamHint }}</span>
           </div>
         </header>
 
@@ -613,7 +654,6 @@ onBeforeUnmount(() => {
             ref="draftEntryRef"
             class="ai-draft-entry__button"
             type="button"
-            :disabled="busy"
             :aria-expanded="draftOpen"
             aria-controls="ai-draft-panel"
             @click="openDraft"
@@ -631,7 +671,7 @@ onBeforeUnmount(() => {
           <AppSkeleton v-if="messagesLoading" variant="detail" :rows="4" />
 
           <EmptyState
-            v-else-if="!messages.length && !streaming"
+            v-else-if="!messages.length && !activeStreaming"
             icon="ChatDotRound"
             title="说清楚遇到的问题"
             description="例如「卧室空调不制冷，外机声音很大」。助手会先给出排查方案，你可以反馈是否解决，或选择生成工单草稿。"
@@ -650,7 +690,7 @@ onBeforeUnmount(() => {
                 引用知识库：{{ message.citations }}
               </div>
               <p v-if="message.incomplete" class="ai-answer-actions__label">回答已停止，补充信息后可继续咨询。</p>
-              <div v-if="sessionResolved === 0 && latestAnswer?.id === message.id" class="ai-answer-actions">
+              <div v-if="sessionResolved === 0 && !activeStreaming && hasRepairAnswer && latestAnswer?.id === message.id" class="ai-answer-actions">
                 <p class="ai-answer-actions__label">问题是否已解决？</p>
                 <div class="ai-answer-actions__buttons">
                   <el-button size="small" :disabled="busy" @click="onAnswerAction('RESOLVED')">
@@ -659,7 +699,7 @@ onBeforeUnmount(() => {
                   <el-button size="small" :disabled="busy" @click="onAnswerAction('UNRESOLVED')">
                     未解决，继续排查
                   </el-button>
-                  <el-button size="small" type="primary" plain :icon="Document" :disabled="busy" @click="onAnswerAction('GENERATE_DRAFT')">
+                  <el-button v-if="canGenerateDraft" size="small" type="primary" plain :icon="Document" :disabled="busy" @click="onAnswerAction('GENERATE_DRAFT')">
                     生成工单草稿
                   </el-button>
                 </div>
@@ -668,7 +708,7 @@ onBeforeUnmount(() => {
 
             <!-- 正在生成的回答：无内容时显示打字动画，有内容时尾部带光标 -->
             <ChatBubble
-              v-if="streaming && streamAction !== 'RESOLVED'"
+              v-if="activeStreaming && streamAction !== 'RESOLVED'"
               sender="AI"
               :content="streamText"
               :loading="true"
@@ -684,7 +724,7 @@ onBeforeUnmount(() => {
           </template>
 
           <!-- 免责声明作为对话尾注：跟随消息滚动，只在对话结束后显示 -->
-          <p v-if="!streaming && messages.length" class="ai-chat__disclaimer">
+          <p v-if="!activeStreaming && messages.length" class="ai-chat__disclaimer">
             助手回答仅供参考，重要操作请与物业确认
           </p>
         </div>
@@ -701,10 +741,9 @@ onBeforeUnmount(() => {
                 class="ai-composer__input"
                 aria-label="描述故障现象"
                 type="textarea"
-                :autosize="{ minRows: 1, maxRows: 4 }"
+                :autosize="{ minRows: 2, maxRows: 6 }"
                 resize="none"
                 maxlength="2000"
-                :disabled="busy"
                 placeholder="描述故障现象，Enter 发送，Shift + Enter 换行"
                 @keydown="onComposerKeydown"
               />
@@ -716,11 +755,11 @@ onBeforeUnmount(() => {
                 class="ai-composer__action"
                 type="primary"
                 :icon="Promotion"
-                :loading="streaming || creatingSession"
+                :loading="creatingSession"
                 :disabled="!canSend"
                 @click="sendMessage"
               >
-                {{ streaming ? '处理中' : '发送' }}
+                发送
               </el-button>
             </div>
             <span v-if="canStop" class="ai-composer__tip">生成中可随时停止</span>
@@ -838,15 +877,23 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ai-page {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
   max-width: var(--layout-content-max);
 }
 
+:global(.app-shell.app-shell--owner .ai-page) {
+  padding-bottom: 19.2px;
+}
+
 .ai-layout {
+  position: relative;
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: var(--space-4);
-  height: calc(100dvh - var(--layout-top-height) - 2 * var(--layout-page-padding));
-  min-height: 480px;
+  min-height: 0;
 }
 
 /* 草稿卡展开时多占一列 */
@@ -1036,7 +1083,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-2);
   border-top: 1px solid var(--color-divider);
 }
 
@@ -1047,22 +1094,23 @@ onBeforeUnmount(() => {
   gap: var(--space-2);
 }
 
-/* 输入框占满剩余宽度，长文本在框内自动增高到 4 行 */
+/* 输入框占满剩余宽度，长文本在框内自动增高到 6 行 */
 .ai-composer__input {
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .ai-composer__input :deep(.el-textarea__inner) {
-  min-height: 40px;
-  padding-block: 9px;
+  min-height: 64px !important;
+  padding: 11px 12px;
+  line-height: 21px;
 }
 
-/* 操作按钮固定宽度，与单行输入框等高，不被文本压缩 */
+/* 操作按钮与两行输入框等高，形成完整的输入操作组 */
 .ai-composer__action {
   flex: 0 0 auto;
-  min-width: 84px;
-  height: 40px;
+  min-width: 96px;
+  height: 64px;
 }
 
 .ai-history-toggle {
@@ -1208,14 +1256,13 @@ onBeforeUnmount(() => {
     grid-template-columns: 200px minmax(0, 1fr);
   }
 
-  .ai-layout.has-draft {
-    height: auto;
-    grid-template-rows: minmax(480px, calc(100dvh - var(--layout-top-height) - 2 * var(--layout-page-padding))) auto;
-  }
-
   .ai-draft {
-    grid-column: 1 / -1;
-    height: 420px;
+    position: absolute;
+    z-index: 2;
+    inset: 0 0 0 auto;
+    width: min(380px, calc(100% - 216px));
+    min-height: 0;
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -1223,9 +1270,8 @@ onBeforeUnmount(() => {
   .ai-layout,
   .ai-layout.has-draft {
     grid-template-columns: minmax(0, 1fr);
-    height: auto;
     min-height: 0;
-    grid-template-rows: auto;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .ai-brand {
@@ -1258,8 +1304,7 @@ onBeforeUnmount(() => {
   }
 
   .ai-chat {
-    height: calc(100dvh - var(--layout-top-height) - 2 * var(--layout-page-padding) - 144px);
-    min-height: 420px;
+    min-height: 0;
   }
 
   .ai-chat__list {
@@ -1267,6 +1312,8 @@ onBeforeUnmount(() => {
   }
 
   .ai-draft {
+    inset: 0;
+    width: 100%;
     height: auto;
   }
 }

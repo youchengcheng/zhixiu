@@ -13,7 +13,7 @@ export const useNotificationStore = defineStore('notification', {
       this.loading = true
       try {
         const data = await getUnreadCount()
-        this.unreadCount = Number(data?.unreadCount || 0)
+        this.unreadCount = Number(data?.count || 0)
       } finally {
         this.loading = false
       }

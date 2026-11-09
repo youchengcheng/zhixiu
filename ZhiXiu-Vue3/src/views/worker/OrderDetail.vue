@@ -56,6 +56,9 @@ const imageList = computed(() => (detail.value?.images || []).map((url) => publi
 const finishImageList = computed(() =>
   (detail.value?.finishImages || []).map((url) => publicFileUrl(url))
 )
+const evaluationImageList = computed(() =>
+  (detail.value?.evaluation?.images || []).map((url) => publicFileUrl(url))
+)
 
 const sla = computed(() => slaState(detail.value))
 const responseLeft = computed(() => untilNow(detail.value?.slaResponseDeadline))
@@ -80,6 +83,8 @@ const nextHint = computed(() => {
       return '已提交完工，等待业主确认。'
     case 'COMPLETED':
       return '业主已确认完工，等待评价。'
+    case 'CLOSED':
+      return '业主已完成评价，工单流程已结束。'
     default:
       return '该工单已结束，仅可查看记录。'
   }
@@ -375,20 +380,94 @@ async function submitFinish() {
       </SectionCard>
 
       <!-- 完工记录 -->
-      <SectionCard v-if="detail.processNote || finishImageList.length" title="完工记录">
-        <p v-if="detail.processNote" class="worder-desc">{{ detail.processNote }}</p>
-        <div v-if="finishImageList.length" class="worder-images">
-          <el-image
-            v-for="(url, index) in finishImageList"
-            :key="url"
-            class="worder-images__item"
-            :src="url"
-            :preview-src-list="finishImageList"
-            :initial-index="index"
-            fit="cover"
-            preview-teleported
-            hide-on-click-modal
+      <SectionCard
+        v-if="detail.processNote || finishImageList.length"
+        title="完工记录"
+        description="师傅提交的处理过程与完工照片"
+      >
+        <div class="detail-content">
+          <section v-if="detail.processNote" class="detail-content__section">
+            <h3 class="detail-content__label">处理过程</h3>
+            <p class="detail-content__text detail-content__text--emphasis">{{ detail.processNote }}</p>
+          </section>
+
+          <section v-if="finishImageList.length" class="detail-content__section">
+            <h3 class="detail-content__label">完工照片</h3>
+            <div class="worder-images">
+              <el-image
+                v-for="(url, index) in finishImageList"
+                :key="url"
+                class="worder-images__item"
+                :src="url"
+                :preview-src-list="finishImageList"
+                :initial-index="index"
+                fit="cover"
+                preview-teleported
+                hide-on-click-modal
+              />
+            </div>
+          </section>
+        </div>
+      </SectionCard>
+
+      <!-- 业主评价：详情接口已返回 evaluation，评价前不展示该卡片 -->
+      <SectionCard
+        v-if="detail.evaluation"
+        title="业主评价"
+        description="业主对本次维修服务的评价"
+      >
+        <div class="evaluation-summary">
+          <el-rate
+            :model-value="detail.evaluation.score"
+            disabled
+            show-score
+            score-template="{value} 分"
           />
+          <span class="evaluation-summary__time text-mono">
+            {{ formatDateTime(detail.evaluation.createTime) }}
+          </span>
+        </div>
+
+        <dl class="evaluation-scores">
+          <div v-if="detail.evaluation.speedScore != null" class="evaluation-scores__item">
+            <dt>响应速度</dt>
+            <dd>{{ detail.evaluation.speedScore }} 分</dd>
+          </div>
+          <div v-if="detail.evaluation.attitudeScore != null" class="evaluation-scores__item">
+            <dt>服务态度</dt>
+            <dd>{{ detail.evaluation.attitudeScore }} 分</dd>
+          </div>
+          <div v-if="detail.evaluation.qualityScore != null" class="evaluation-scores__item">
+            <dt>维修质量</dt>
+            <dd>{{ detail.evaluation.qualityScore }} 分</dd>
+          </div>
+        </dl>
+
+        <div class="detail-content evaluation-detail">
+          <section class="detail-content__section">
+            <h3 class="detail-content__label">评价内容</h3>
+            <p class="detail-content__text detail-content__text--emphasis">
+              {{ detail.evaluation.content || '业主未填写文字评价' }}
+            </p>
+          </section>
+
+          <section class="detail-content__section">
+            <h3 class="detail-content__label">评价图片</h3>
+            <div v-if="evaluationImageList.length" class="worder-images">
+              <el-image
+                v-for="(url, index) in evaluationImageList"
+                :key="url"
+                class="worder-images__item"
+                :src="url"
+                :preview-src-list="evaluationImageList"
+                :initial-index="index"
+                fit="cover"
+                preview-teleported
+                hide-on-click-modal
+              />
+            </div>
+            <p v-else class="detail-content__empty">业主未上传评价图片</p>
+          </section>
         </div>
       </SectionCard>
 
@@ -512,6 +591,98 @@ async function submitFinish() {
   background: var(--color-bg-sunken);
 }
 
+.detail-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-content__section {
+  min-width: 0;
+}
+
+.detail-content__section:first-child {
+  padding-right: var(--space-5);
+}
+
+.detail-content__section:nth-child(2) {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-divider);
+}
+
+.detail-content__section:only-child {
+  grid-column: 1 / -1;
+  padding-inline: 0;
+  border-left: 0;
+}
+
+.detail-content__label {
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-1);
+}
+
+.detail-content__text {
+  max-width: 75ch;
+  color: var(--color-text-2);
+  line-height: var(--lh-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.detail-content__text--emphasis {
+  color: var(--color-text-1);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+}
+
+.detail-content__empty {
+  color: var(--color-text-3);
+  font-size: var(--fs-sm);
+}
+
+.evaluation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.evaluation-summary__time {
+  font-size: var(--fs-xs);
+  color: var(--color-text-3);
+}
+
+.evaluation-scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.evaluation-scores__item {
+  min-width: 0;
+}
+
+.evaluation-scores__item dt {
+  font-size: var(--fs-xs);
+  color: var(--color-text-3);
+}
+
+.evaluation-scores__item dd {
+  margin-top: var(--space-1);
+  color: var(--color-text-1);
+  font-weight: 600;
+}
+
+.evaluation-detail {
+  margin-top: var(--space-4);
+}
+
 .sla-box {
   padding: var(--space-4);
   border: 1px solid var(--color-border);
@@ -538,5 +709,22 @@ async function submitFinish() {
 
 .sla-box__left.is-expired {
   color: var(--color-danger-strong);
+}
+
+@media (max-width: 767px) {
+  .detail-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-content__section:first-child {
+    padding-right: 0;
+  }
+
+  .detail-content__section:nth-child(2) {
+    margin-top: var(--space-5);
+    padding: var(--space-4) 0 0;
+    border-top: 1px solid var(--color-divider);
+    border-left: 0;
+  }
 }
 </style>

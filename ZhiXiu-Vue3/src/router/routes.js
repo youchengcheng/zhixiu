@@ -84,7 +84,7 @@ export const ownerRoutes = {
       path: 'notification',
       name: 'OwnerNotification',
       component: () => import('@/views/common/Notification.vue'),
-      meta: { title: '消息中心', hidden: true }
+      meta: { title: '消息中心', icon: 'BellFilled', group: '社区与账户' }
     },
     {
       path: 'property',
