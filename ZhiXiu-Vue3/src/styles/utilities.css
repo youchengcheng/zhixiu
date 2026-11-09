@@ -5,7 +5,7 @@
   width: 100%;
   max-width: var(--layout-content-max);
   margin: 0 auto;
-  padding: var(--layout-page-padding);
+  padding: var(--space-5) var(--layout-page-padding) var(--layout-page-padding);
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -107,6 +107,10 @@
 }
 
 @media (max-width: 768px) {
+  .layout-page {
+    padding-top: var(--space-3);
+  }
+
   .grid-2,
   .grid-3,
   .grid-4 {

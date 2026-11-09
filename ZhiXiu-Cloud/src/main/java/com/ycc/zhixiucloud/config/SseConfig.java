@@ -12,8 +12,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  * 若占用 Tomcat 请求线程会迅速耗尽 Web 容器线程，因此单独建池把推送移出请求线程；
  * 与 AsyncConfig 的通用线程池隔离，避免 AI 长任务挤占通知、日志等后台任务。</p>
  *
- * <p>异步响应超时由 application.yml 的 spring.mvc.async.request-timeout（60000 毫秒）控制，
- * 需大于 AI 首 Token 返回时间，否则连接会被容器提前关闭。</p>
+ * <p>异步响应超时由 application.yml 的 spring.mvc.async.request-timeout（120000 毫秒）控制，
+ * 需覆盖 AI 首 Token 与工单草稿结构化抽取时间，否则连接会被容器提前关闭。</p>
  */
 @Configuration
 public class SseConfig {

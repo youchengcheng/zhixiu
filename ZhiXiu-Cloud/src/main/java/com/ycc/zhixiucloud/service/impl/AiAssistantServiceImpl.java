@@ -121,6 +121,9 @@ public class AiAssistantServiceImpl implements AiAssistantService {
     /** 注入模型的最近对话条数 */
     private static final int HISTORY_LIMIT = 10;
 
+    /** 普通对话上下文最大字符数，防止长消息堆叠后撑大提示词 */
+    private static final int HISTORY_MAX_CHARS = 8000;
+
     /** 会话标题截断长度 */
     private static final int TITLE_MAX = 40;
 
@@ -135,6 +138,32 @@ public class AiAssistantServiceImpl implements AiAssistantService {
 
     /** 槽位提取时注入的最大对话条数，控制提示词长度与 token 成本 */
     private static final int DRAFT_CONTEXT_LIMIT = 20;
+
+    /** 草稿结构化抽取的最大对话字符数 */
+    private static final int DRAFT_CONTEXT_MAX_CHARS = 12000;
+
+    /** 用户故障陈述保留的最近消息数 */
+    private static final int USER_CONTEXT_LIMIT = 20;
+
+    /** 用户故障陈述的最大字符数 */
+    private static final int USER_CONTEXT_MAX_CHARS = 6000;
+
+    /** 首条故障陈述在长会话中的保留上限 */
+    private static final int INITIAL_CONTEXT_MAX_CHARS = 1500;
+
+    /** 向量检索查询的最大字符数 */
+    private static final int RAG_QUERY_MAX_CHARS = 2000;
+
+    /** 用户通过自然语言明确要求生成工单草稿 */
+    private static final Pattern DRAFT_REQUEST_PATTERN = Pattern.compile(
+            "(?:请|麻烦)?(?:你)?(?:直接)?(?:帮我|给我)?(?:生成|创建|建立|提交)(?:一个|一张|一下)?(?:维修)?工单"
+                    + "|(?:请|麻烦)?(?:你)?(?:直接)?(?:帮我|给我)报修"
+                    + "|我(?:想|要|需要)报修|需要报修|直接报修|安排上门(?:维修)?");
+
+    /** 否定、疑问或取消语义不能误触发草稿生成 */
+    private static final Pattern DRAFT_REQUEST_NEGATIVE_PATTERN = Pattern.compile(
+            "(?:不要|不用|取消|别).{0,8}(?:工单|报修)"
+                    + "|(?:不能|无法|怎么|如何|为什么|为何).{0,12}(?:生成|创建|提交|报修)");
 
     /** 安全隐患白名单，与开发文档「safetyFlag」枚举取值一致 */
     private static final List<String> SAFETY_FLAGS = List.of("涉电", "涉水", "涉气", "高空");
@@ -480,6 +509,7 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                     String content = ACTION_UNRESOLVED.equals(action)
                             ? "问题还没有解决，请提供其他排查方案，并询问还需要哪些详细信息。"
                             : requestVO.getContent().trim();
+                    boolean naturalDraftRequest = ACTION_CHAT.equals(action) && isDraftRequest(content);
                     // 消息与会话标题在短事务中保存，提交后再调用模型。
                     transactionTemplate.executeWithoutResult(status -> {
                         saveMessage(sessionId, SENDER_USER, content, null, null, null, null, null);
@@ -490,7 +520,11 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                             sessionMapper.updateById(titleUpdate);
                         }
                     });
-                    answerQuestion(session, content, ACTION_UNRESOLVED.equals(action), emitter);
+                    if (naturalDraftRequest) {
+                        generateDraft(session, null, emitter);
+                    } else {
+                        answerQuestion(session, content, ACTION_UNRESOLVED.equals(action), emitter);
+                    }
                 }
                 return null;
             });
@@ -557,7 +591,16 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         AiChatMessage existing = latestDraftMessage(session.getId());
         if (isDraftValid(session, existing)) {
             sendEvent(emitter, "draft", toDraftVO(existing));
-            sendDone(emitter, latest.getId(), session);
+            if (latest == null) {
+                String answer = "已找到本次会话的有效工单草稿，请核对并补充信息后提交。";
+                sendEvent(emitter, "message", Map.of("delta", answer));
+                Long messageId = transactionTemplate.execute(status ->
+                        saveMessage(session.getId(), SENDER_AI, answer, INTENT_FILL_FORM,
+                                null, null, null, null));
+                sendDone(emitter, messageId, session);
+            } else {
+                sendDone(emitter, latest.getId(), session);
+            }
             return;
         }
 
@@ -615,15 +658,24 @@ public class AiAssistantServiceImpl implements AiAssistantService {
 
     // ------------------------------------------------------------------ 规则识别
 
-    /**
-     * 普通对话只识别问答或故障排查，填单意图由生成草稿按钮明确触发。
-     */
+    /** 普通对话识别问答或故障排查，明确的建单指令由 streamAction 直接分流。 */
     private String detectIntent(String text) {
         if (containsAny(text, "报修", "上门", "维修", "派单", "怎么办", "为什么", "不制冷", "不工作",
                 "漏水", "跳闸", "异响", "打不开", "无法", "坏了", "堵了", "失灵")) {
             return INTENT_TROUBLESHOOT;
         }
         return INTENT_QA;
+    }
+
+    /**
+     * 识别用户明确的自然语言建单指令。
+     *
+     * <p>否定、取消和「如何生成」类疑问优先排除，避免误生成草稿。</p>
+     */
+    private boolean isDraftRequest(String text) {
+        return StringUtils.hasText(text)
+                && !DRAFT_REQUEST_NEGATIVE_PATTERN.matcher(text).find()
+                && DRAFT_REQUEST_PATTERN.matcher(text).find();
     }
 
     /**
@@ -685,27 +737,45 @@ public class AiAssistantServiceImpl implements AiAssistantService {
      * @return 「业主/助手」轮次拼接的对话文本
      */
     private String conversationText(Long sessionId, String answer) {
-        // 按时间正序取本会话消息
+        // 按时间倒序取最近若干条，避免长会话全量加载并撑大提示词
         List<AiChatMessage> messages = messageMapper.selectList(Wrappers.<AiChatMessage>lambdaQuery()
                 .eq(AiChatMessage::getSessionId, sessionId)
-                .orderByAsc(AiChatMessage::getCreateTime, AiChatMessage::getId));
+                .orderByDesc(AiChatMessage::getCreateTime, AiChatMessage::getId)
+                .last("LIMIT " + DRAFT_CONTEXT_LIMIT));
         // 上下文构建器
         StringBuilder builder = new StringBuilder();
-        // 只保留最近若干条，历史过长时截断头部
-        int from = Math.max(0, messages.size() - DRAFT_CONTEXT_LIMIT);
-        // 逐条拼接为「角色：内容」
-        for (int i = from; i < messages.size(); i++) {
-            // 当前遍历到的消息
-            AiChatMessage message = messages.get(i);
-            // 角色名：用户侧的库里记为 USER，其余都按助手处理
-            String role = SENDER_USER.equals(message.getSender()) ? "业主" : "助手";
-            // 追加一轮对话
-            builder.append(role).append("：").append(message.getContent()).append('\n');
+        // 保留最初故障描述，长会话截断时仍能知道本次报修对象
+        AiChatMessage firstUser = messageMapper.selectOne(Wrappers.<AiChatMessage>lambdaQuery()
+                .eq(AiChatMessage::getSessionId, sessionId)
+                .eq(AiChatMessage::getSender, SENDER_USER)
+                .orderByAsc(AiChatMessage::getCreateTime, AiChatMessage::getId)
+                .last("LIMIT 1"));
+        int remaining = DRAFT_CONTEXT_MAX_CHARS;
+        if (firstUser != null && messages.stream().noneMatch(item -> item.getId().equals(firstUser.getId()))) {
+            String line = "业主（最初描述）："
+                    + abbreviate(firstUser.getContent(), INITIAL_CONTEXT_MAX_CHARS) + '\n';
+            builder.append(line);
+            remaining -= line.length();
         }
+        // 从最新消息向前选取，优先保留最近补充信息
+        List<String> selected = new ArrayList<>();
+        for (AiChatMessage message : messages) {
+            String role = SENDER_USER.equals(message.getSender()) ? "业主" : "助手";
+            String prefix = role + "：";
+            if (remaining <= prefix.length() + 1) {
+                break;
+            }
+            String content = abbreviate(message.getContent(), remaining - prefix.length() - 1);
+            String line = prefix + content + '\n';
+            selected.add(line);
+            remaining -= line.length();
+        }
+        java.util.Collections.reverse(selected);
+        selected.forEach(builder::append);
         // 本轮回答尚未落库，需要手动追加到上下文末尾
-        if (StringUtils.hasText(answer)) {
+        if (StringUtils.hasText(answer) && remaining > 4) {
             // 追加助手本轮回答
-            builder.append("助手：").append(answer).append('\n');
+            builder.append("助手：").append(abbreviate(answer, remaining - 4)).append('\n');
         }
         // 返回完整上下文
         return builder.toString();
@@ -1119,7 +1189,10 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         // 检索异常时降级为空
         try {
             // 构建相似度检索请求
-            SearchRequest request = SearchRequest.builder().query(query).topK(RAG_TOPK).build();
+            SearchRequest request = SearchRequest.builder()
+                    .query(abbreviate(query, RAG_QUERY_MAX_CHARS))
+                    .topK(RAG_TOPK)
+                    .build();
             // 执行检索
             List<Document> documents = vectorStore.similaritySearch(request);
             // 结果为空按空列表返回
@@ -1198,14 +1271,19 @@ public class AiAssistantServiceImpl implements AiAssistantService {
             // 返回无历史占位
             return "（无）";
         }
-        // 复制后翻转为正序
-        List<AiChatMessage> ordered = new ArrayList<>(messages);
-        // 反转为时间正序
-        java.util.Collections.reverse(ordered);
-        // 拼接为「用户/助手：内容」文本
-        return ordered.stream()
-                .map(message -> (SENDER_USER.equals(message.getSender()) ? "用户：" : "助手：") + message.getContent())
-                .collect(Collectors.joining("\n"));
+        int remaining = HISTORY_MAX_CHARS;
+        List<String> selected = new ArrayList<>();
+        for (AiChatMessage message : messages) {
+            String prefix = SENDER_USER.equals(message.getSender()) ? "用户：" : "助手：";
+            if (remaining <= prefix.length()) {
+                break;
+            }
+            String line = prefix + abbreviate(message.getContent(), remaining - prefix.length());
+            selected.add(line);
+            remaining -= line.length() + 1;
+        }
+        java.util.Collections.reverse(selected);
+        return String.join("\n", selected);
     }
 
     /**
@@ -1348,23 +1426,57 @@ public class AiAssistantServiceImpl implements AiAssistantService {
     }
 
     /**
-     * 聚合会话内全部用户消息。
+     * 聚合会话内的用户故障陈述。
      *
-     * <p>多轮补充的信息可能分散在不同消息中，用句号拼接后统一做关键词匹配，
-     * 避免只根据最后一句话而漏掉前文提供的槽位。</p>
+     * <p>保留首条故障描述和最近补充信息，同时限制总字符数，
+     * 避免长会话让向量检索或草稿抽取超出模型上下文。</p>
      *
      * @param sessionId 会话 ID
      * @return 拼接后的用户描述
      */
     private String aggregateUserText(Long sessionId) {
-        // 按时间正序取全部用户消息
+        // 倒序取最近用户消息，长会话不再全量拼接给模型或向量库
         List<AiChatMessage> users = messageMapper.selectList(Wrappers.<AiChatMessage>lambdaQuery()
                 .eq(AiChatMessage::getSessionId, sessionId)
                 .eq(AiChatMessage::getSender, SENDER_USER)
-                .orderByAsc(AiChatMessage::getCreateTime, AiChatMessage::getId));
-        // 用句号连接多轮描述，便于关键词整体匹配
-        return users.stream().map(AiChatMessage::getContent).filter(Objects::nonNull)
-                .collect(Collectors.joining("。"));
+                .orderByDesc(AiChatMessage::getCreateTime, AiChatMessage::getId)
+                .last("LIMIT " + USER_CONTEXT_LIMIT));
+        AiChatMessage firstUser = messageMapper.selectOne(Wrappers.<AiChatMessage>lambdaQuery()
+                .eq(AiChatMessage::getSessionId, sessionId)
+                .eq(AiChatMessage::getSender, SENDER_USER)
+                .orderByAsc(AiChatMessage::getCreateTime, AiChatMessage::getId)
+                .last("LIMIT 1"));
+        String first = firstUser == null ? null
+                : abbreviate(cleanUserStatement(firstUser.getContent()), INITIAL_CONTEXT_MAX_CHARS);
+        int remaining = USER_CONTEXT_MAX_CHARS - (StringUtils.hasText(first) ? first.length() + 1 : 0);
+        List<String> selected = new ArrayList<>();
+        for (AiChatMessage user : users) {
+            if (firstUser != null && user.getId().equals(firstUser.getId())) {
+                continue;
+            }
+            String statement = cleanUserStatement(user.getContent());
+            if (!StringUtils.hasText(statement) || remaining <= 0) {
+                continue;
+            }
+            String limited = abbreviate(statement, remaining);
+            selected.add(limited);
+            remaining -= limited.length() + 1;
+        }
+        java.util.Collections.reverse(selected);
+        if (StringUtils.hasText(first)) {
+            selected.add(0, first);
+        }
+        return String.join("。", selected);
+    }
+
+    /** 去掉「帮我生成工单」类操作指令，避免它被误当成故障现象。 */
+    private String cleanUserStatement(String text) {
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        return DRAFT_REQUEST_PATTERN.matcher(text).replaceAll("")
+                .replaceAll("^[\\s，。！？,.!]+|[\\s，。！？,.!]+$", "")
+                .trim();
     }
 
     /**

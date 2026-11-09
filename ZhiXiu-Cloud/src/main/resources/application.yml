@@ -31,7 +31,7 @@ spring:
     default-property-inclusion: non_null
   mvc:
     async:
-      request-timeout: 60000          # SSE 流式响应超时（毫秒）
+      request-timeout: 120000         # SSE 流式响应超时（毫秒），覆盖草稿结构化抽取
 
   # ---------- 数据源 ----------
   # MySQL 8 驱动；主机、端口、库名均支持环境变量覆盖，冒号后为本地默认值

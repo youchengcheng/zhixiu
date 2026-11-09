@@ -1,6 +1,7 @@
 package com.ycc.zhixiucloud.mq.consumer;
 
 import com.ycc.zhixiucloud.common.constant.MqConstants;
+import com.ycc.zhixiucloud.common.enums.OperatorTypeEnum;
 import com.ycc.zhixiucloud.common.enums.OrderStatusEnum;
 import com.ycc.zhixiucloud.dto.WorkOrderEvent;
 import com.ycc.zhixiucloud.mq.MqMessageCodec;
@@ -71,7 +72,7 @@ public class OrderEventConsumer implements RocketMQListener {
     /**
      * 事件 -> 通知扇出。
      * 接收人按事件语义选择：业主关注接单、到场、暂停/恢复、提交进度；
-     * 师傅关注派单、完工与取消；管理员关注新单、超时回退、转单与取消等需要介入的节点。
+     * 师傅关注派单、完工确认、业主评价与取消；管理员关注新单、超时回退、转单与取消等需要介入的节点。
      */
     private void dispatch(WorkOrderEvent event) {
         // 提取工单 ID
@@ -124,10 +125,26 @@ public class OrderEventConsumer implements RocketMQListener {
             case MqConstants.OrderEvent.SUBMITTED -> notificationService.notifyOwner(
                     event.eventId(), longValue(event, "ownerId"), "师傅已提交完工",
                     summary + "已提交完工，请确认并评价。", orderId);
-            // 完工确认：告知实际接单师傅
-            case MqConstants.OrderEvent.COMPLETED -> notificationService.notifyWorker(
-                    event.eventId(), longValue(event, "acceptedWorkerId"), "工单已完工",
-                    summary + "已确认完工。", orderId);
+            // COMPLETE Tag 同时覆盖确认完工与评价关单，按目标状态区分通知语义
+            case MqConstants.OrderEvent.COMPLETED -> {
+                Long workerId = longValue(event, "acceptedWorkerId");
+                if (OrderStatusEnum.COMPLETED.getCode().equals(event.toStatus())) {
+                    // SUBMITTED -> COMPLETED：人工确认与系统自动确认使用不同文案
+                    boolean confirmedByOwner = OperatorTypeEnum.OWNER.getCode().equals(event.operatorType());
+                    String title = confirmedByOwner ? "业主已确认完工" : "工单已自动确认完工";
+                    String content = confirmedByOwner
+                            ? summary + "已由业主确认维修完成，等待业主评价。"
+                            : summary + "已由系统自动确认维修完成。";
+                    notificationService.notifyWorker(event.eventId(), workerId, title, content, orderId);
+                } else if (OrderStatusEnum.CLOSED.getCode().equals(event.toStatus())) {
+                    // COMPLETED -> CLOSED：评价已落库，提醒师傅查看评价详情
+                    notificationService.notifyWorker(event.eventId(), workerId, "收到新的业主评价",
+                            summary + "业主已完成评价，点击查看评价详情。", orderId);
+                } else {
+                    // 未知目标状态不发送错误通知，只记录现场便于排查
+                    log.warn("完工事件目标状态异常：orderId={}, toStatus={}", orderId, event.toStatus());
+                }
+            }
             // 工单取消：管理员与已接单师傅都需要知晓，避免继续上门
             case MqConstants.OrderEvent.CANCELED -> {
                 // 工单取消：一并通知管理员

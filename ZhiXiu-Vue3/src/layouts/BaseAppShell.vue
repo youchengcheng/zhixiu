@@ -125,10 +125,15 @@ function onToggle() {
           </nav>
         </template>
       </TopBar>
-      <main class="app-shell__content">
+      <main
+        class="app-shell__content"
+        :class="{ 'app-shell__content--fixed': route.name === 'OwnerAiAssistant' }"
+      >
         <router-view v-slot="{ Component }">
           <transition name="route-fade" mode="out-in">
-            <component :is="Component" />
+            <keep-alive include="OwnerAiAssistant">
+              <component :is="Component" />
+            </keep-alive>
           </transition>
         </router-view>
       </main>
@@ -176,6 +181,11 @@ function onToggle() {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+}
+
+.app-shell__content--fixed {
+  display: flex;
+  overflow: hidden;
 }
 
 .brand {

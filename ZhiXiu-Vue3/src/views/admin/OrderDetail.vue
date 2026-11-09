@@ -69,6 +69,9 @@ const imageList = computed(() => (detail.value?.images || []).map((url) => publi
 const finishImageList = computed(() =>
   (detail.value?.finishImages || []).map((url) => publicFileUrl(url))
 )
+const evaluationImageList = computed(() =>
+  (detail.value?.evaluation?.images || []).map((url) => publicFileUrl(url))
+)
 
 const sla = computed(() => slaState(detail.value))
 const responseLeft = computed(() => untilNow(detail.value?.slaResponseDeadline))
@@ -300,8 +303,44 @@ async function submitCancel() {
             <dd>{{ detail.deviceInfo || '-' }}</dd>
           </div>
           <div class="adetail-grid__item">
+            <dt>故障持续时间</dt>
+            <dd>{{ detail.faultDuration || '-' }}</dd>
+          </div>
+          <div class="adetail-grid__item">
+            <dt>期望上门时段</dt>
+            <dd>{{ detail.expectedVisitTime || '-' }}</dd>
+          </div>
+          <div class="adetail-grid__item">
+            <dt>报修来源</dt>
+            <dd>{{ detail.source === 'AI' ? 'AI 助手' : detail.source === 'MANUAL' ? '手动报修' : (detail.source || '-') }}</dd>
+          </div>
+          <div class="adetail-grid__item">
             <dt>提交时间</dt>
             <dd>{{ formatDateTime(detail.createTime) }}</dd>
+          </div>
+          <div v-if="detail.assignedTime" class="adetail-grid__item">
+            <dt>派单时间</dt>
+            <dd>{{ formatDateTime(detail.assignedTime) }}</dd>
+          </div>
+          <div v-if="detail.acceptedTime" class="adetail-grid__item">
+            <dt>接单时间</dt>
+            <dd>{{ formatDateTime(detail.acceptedTime) }}</dd>
+          </div>
+          <div v-if="detail.arrivedTime" class="adetail-grid__item">
+            <dt>到场时间</dt>
+            <dd>{{ formatDateTime(detail.arrivedTime) }}</dd>
+          </div>
+          <div v-if="detail.submittedTime" class="adetail-grid__item">
+            <dt>提交完工时间</dt>
+            <dd>{{ formatDateTime(detail.submittedTime) }}</dd>
+          </div>
+          <div v-if="detail.completedTime" class="adetail-grid__item">
+            <dt>完工确认时间</dt>
+            <dd>{{ formatDateTime(detail.completedTime) }}</dd>
+          </div>
+          <div v-if="detail.closedTime" class="adetail-grid__item">
+            <dt>工单关闭时间</dt>
+            <dd>{{ formatDateTime(detail.closedTime) }}</dd>
           </div>
           <div class="adetail-grid__item">
             <dt>SLA 状态</dt>
@@ -312,135 +351,213 @@ async function submitCancel() {
         <p v-if="detail.description" class="adetail-desc">{{ detail.description }}</p>
       </SectionCard>
 
-      <SectionCard v-if="imageList.length || finishImageList.length" title="现场照片">
-        <div class="adetail-images">
-          <div v-if="imageList.length" class="adetail-images__group">
-            <p class="adetail-images__label">报修照片</p>
-            <div class="adetail-images__list">
-              <el-image
-                v-for="(url, index) in imageList"
-                :key="url"
-                class="adetail-images__item"
-                :src="url"
-                :preview-src-list="imageList"
-                :initial-index="index"
-                fit="cover"
-                preview-teleported
-                hide-on-click-modal
-              />
+      <div class="adetail-detail-layout">
+        <div class="adetail-main-column">
+          <SectionCard v-if="imageList.length" title="现场照片">
+            <div class="adetail-images">
+              <div class="adetail-images__group">
+                <p class="adetail-images__label">报修照片</p>
+                <div class="adetail-images__list">
+                  <el-image
+                    v-for="(url, index) in imageList"
+                    :key="url"
+                    class="adetail-images__item"
+                    :src="url"
+                    :preview-src-list="imageList"
+                    :initial-index="index"
+                    fit="cover"
+                    preview-teleported
+                    hide-on-click-modal
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </SectionCard>
 
-          <div v-if="finishImageList.length" class="adetail-images__group">
-            <p class="adetail-images__label">完工照片</p>
-            <div class="adetail-images__list">
-              <el-image
-                v-for="(url, index) in finishImageList"
-                :key="url"
-                class="adetail-images__item"
-                :src="url"
-                :preview-src-list="finishImageList"
-                :initial-index="index"
-                fit="cover"
-                preview-teleported
-                hide-on-click-modal
-              />
+          <!-- SLA 时限：位于现场照片下方，处理时限位于响应时限下方 -->
+          <SectionCard title="SLA 时限">
+            <div class="adetail-sla-list">
+              <div class="asla-box">
+                <p class="asla-box__label">响应时限</p>
+                <p class="asla-box__value text-mono">{{ formatDateTime(detail.slaResponseDeadline) }}</p>
+                <p v-if="responseLeft" class="asla-box__left" :class="{ 'is-expired': responseLeft.expired }">
+                  {{ responseLeft.text }}
+                </p>
+              </div>
+              <div class="asla-box">
+                <p class="asla-box__label">处理时限</p>
+                <p class="asla-box__value text-mono">{{ formatDateTime(detail.slaHandleDeadline) }}</p>
+                <p v-if="handleLeft" class="asla-box__left" :class="{ 'is-expired': handleLeft.expired }">
+                  {{ handleLeft.text }}
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
-      </SectionCard>
+          </SectionCard>
 
-      <div class="grid grid-2">
-        <!-- 业主与地址 -->
-        <SectionCard title="业主信息">
-          <dl class="adetail-grid">
-            <div class="adetail-grid__item">
-              <dt>业主</dt>
-              <dd>{{ detail.ownerName || '-' }}</dd>
-            </div>
-            <div class="adetail-grid__item">
-              <dt>联系电话</dt>
-              <dd class="text-mono">{{ detail.contactPhone || '-' }}</dd>
-            </div>
-            <div class="adetail-grid__item">
-              <dt>报修地址</dt>
-              <dd>{{ detail.fullAddress || '-' }}</dd>
-            </div>
-          </dl>
-        </SectionCard>
-
-        <!-- 指派师傅 -->
-        <SectionCard title="指派师傅">
-          <div v-if="detail.worker || detail.workerName" class="adetail-worker">
-            <LetterAvatar :name="detail.worker?.realName || detail.workerName" :size="40" />
-            <div>
-              <p class="adetail-worker__name">{{ detail.worker?.realName || detail.workerName }}</p>
-              <p class="adetail-worker__meta text-mono">
-                {{ detail.worker?.phone || '未提供电话' }}
-                <span v-if="detail.worker?.avgScore">· 评分 {{ detail.worker.avgScore }}</span>
-              </p>
-            </div>
-          </div>
-          <EmptyState
-            v-else
-            icon="Tools"
-            title="尚未指派师傅"
-            description="可使用 AI 推荐或手动选择师傅完成派单。"
-            size="compact"
-            action-text="刷新"
-            @action="load"
-          />
-        </SectionCard>
-      </div>
-
-      <!-- SLA 时限 -->
-      <SectionCard title="SLA 时限">
-        <div class="grid grid-2">
-          <div class="asla-box">
-            <p class="asla-box__label">响应时限</p>
-            <p class="asla-box__value text-mono">{{ formatDateTime(detail.slaResponseDeadline) }}</p>
-            <p v-if="responseLeft" class="asla-box__left" :class="{ 'is-expired': responseLeft.expired }">
-              {{ responseLeft.text }}
-            </p>
-          </div>
-          <div class="asla-box">
-            <p class="asla-box__label">处理时限</p>
-            <p class="asla-box__value text-mono">{{ formatDateTime(detail.slaHandleDeadline) }}</p>
-            <p v-if="handleLeft" class="asla-box__left" :class="{ 'is-expired': handleLeft.expired }">
-              {{ handleLeft.text }}
-            </p>
-          </div>
-        </div>
-      </SectionCard>
-
-      <!-- 流转记录 -->
-      <SectionCard title="流转记录">
-        <EmptyState
-          v-if="!logs.length"
-          icon="List"
-          title="暂无流转记录"
-          size="compact"
-          description="状态变化后会在这里留下时间线。"
-          action-text="刷新"
-          @action="load"
-        />
-        <el-timeline v-else>
-          <el-timeline-item
-            v-for="log in logs"
-            :key="log.id"
-            :timestamp="formatDateTime(log.createTime)"
-            placement="top"
+          <SectionCard
+            v-if="detail.processNote || finishImageList.length"
+            title="完工记录"
+            description="师傅提交的处理过程与完工照片"
           >
-            <p class="alog-action">{{ ORDER_LOG_ACTION[log.action] || log.action }}</p>
-            <p v-if="log.fromStatus || log.toStatus" class="alog-status">
-              {{ dictText(ORDER_STATUS, log.fromStatus, '-') }}
-              <span class="alog-arrow">→</span>
-              {{ dictText(ORDER_STATUS, log.toStatus) }}
-            </p>
-            <p v-if="log.remark" class="alog-remark">{{ log.remark }}</p>
-          </el-timeline-item>
-        </el-timeline>
-      </SectionCard>
+            <div class="detail-content">
+              <section v-if="detail.processNote" class="detail-content__section">
+                <h3 class="detail-content__label">处理过程</h3>
+                <p class="detail-content__text detail-content__text--emphasis">{{ detail.processNote }}</p>
+              </section>
+
+              <section v-if="finishImageList.length" class="detail-content__section">
+                <h3 class="detail-content__label">完工照片</h3>
+                <div class="adetail-images__list">
+                  <el-image
+                    v-for="(url, index) in finishImageList"
+                    :key="url"
+                    class="adetail-images__item"
+                    :src="url"
+                    :preview-src-list="finishImageList"
+                    :initial-index="index"
+                    fit="cover"
+                    preview-teleported
+                    hide-on-click-modal
+                  />
+                </div>
+              </section>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            v-if="detail.evaluation"
+            title="业主评价"
+            description="业主对本次维修服务的评价"
+          >
+            <div class="evaluation-summary">
+              <el-rate
+                :model-value="detail.evaluation.score"
+                disabled
+                show-score
+                score-template="{value} 分"
+              />
+              <span class="evaluation-summary__time text-mono">
+                {{ formatDateTime(detail.evaluation.createTime) }}
+              </span>
+            </div>
+
+            <dl class="evaluation-scores">
+              <div v-if="detail.evaluation.speedScore != null" class="evaluation-scores__item">
+                <dt>响应速度</dt>
+                <dd>{{ detail.evaluation.speedScore }} 分</dd>
+              </div>
+              <div v-if="detail.evaluation.attitudeScore != null" class="evaluation-scores__item">
+                <dt>服务态度</dt>
+                <dd>{{ detail.evaluation.attitudeScore }} 分</dd>
+              </div>
+              <div v-if="detail.evaluation.qualityScore != null" class="evaluation-scores__item">
+                <dt>维修质量</dt>
+                <dd>{{ detail.evaluation.qualityScore }} 分</dd>
+              </div>
+            </dl>
+
+            <div class="detail-content evaluation-detail">
+              <section class="detail-content__section">
+                <h3 class="detail-content__label">评价内容</h3>
+                <p class="detail-content__text detail-content__text--emphasis">
+                  {{ detail.evaluation.content || '业主未填写文字评价' }}
+                </p>
+              </section>
+
+              <section class="detail-content__section">
+                <h3 class="detail-content__label">评价图片</h3>
+                <div v-if="evaluationImageList.length" class="adetail-images__list">
+                  <el-image
+                    v-for="(url, index) in evaluationImageList"
+                    :key="url"
+                    class="adetail-images__item"
+                    :src="url"
+                    :preview-src-list="evaluationImageList"
+                    :initial-index="index"
+                    fit="cover"
+                    preview-teleported
+                    hide-on-click-modal
+                  />
+                </div>
+                <p v-else class="detail-content__empty">业主未上传评价图片</p>
+              </section>
+            </div>
+          </SectionCard>
+
+        </div>
+
+        <aside class="adetail-side-column">
+          <!-- 指派师傅：使用紧凑卡片，放在现场照片右侧 -->
+          <SectionCard class="adetail-worker-card" title="指派师傅">
+            <div v-if="detail.worker || detail.workerName" class="adetail-worker">
+              <LetterAvatar :name="detail.worker?.realName || detail.workerName" :size="36" />
+              <div class="adetail-worker__details">
+                <span class="adetail-worker__name">{{ detail.worker?.realName || detail.workerName }}</span>
+                <span class="adetail-worker__meta text-mono">{{ detail.worker?.phone || '未提供电话' }}</span>
+                <span v-if="detail.worker?.avgScore" class="adetail-worker__score">
+                  评分 {{ detail.worker.avgScore }}
+                </span>
+              </div>
+            </div>
+            <EmptyState
+              v-else
+              icon="Tools"
+              title="尚未指派师傅"
+              description="可使用 AI 推荐或手动选择师傅完成派单。"
+              size="compact"
+              action-text="刷新"
+              @action="load"
+            />
+          </SectionCard>
+
+          <!-- 业主与地址：位于指派师傅下方 -->
+          <SectionCard title="业主信息">
+            <dl class="adetail-grid">
+              <div class="adetail-grid__item">
+                <dt>业主</dt>
+                <dd>{{ detail.ownerName || '-' }}</dd>
+              </div>
+              <div class="adetail-grid__item">
+                <dt>联系电话</dt>
+                <dd class="text-mono">{{ detail.contactPhone || '-' }}</dd>
+              </div>
+              <div class="adetail-grid__item">
+                <dt>报修地址</dt>
+                <dd>{{ detail.fullAddress || '-' }}</dd>
+              </div>
+            </dl>
+          </SectionCard>
+
+          <!-- 流转记录随页面完整展开，便于管理员连续查看全部处理轨迹 -->
+          <SectionCard title="流转记录">
+            <EmptyState
+              v-if="!logs.length"
+              icon="List"
+              title="暂无流转记录"
+              size="compact"
+              description="状态变化后会在这里留下时间线。"
+              action-text="刷新"
+              @action="load"
+            />
+            <el-timeline v-else>
+              <el-timeline-item
+                v-for="log in logs"
+                :key="log.id"
+                :timestamp="formatDateTime(log.createTime)"
+                placement="top"
+              >
+                <p class="alog-action">{{ ORDER_LOG_ACTION[log.action] || log.action }}</p>
+                <p v-if="log.fromStatus || log.toStatus" class="alog-status">
+                  {{ dictText(ORDER_STATUS, log.fromStatus, '-') }}
+                  <span class="alog-arrow">→</span>
+                  {{ dictText(ORDER_STATUS, log.toStatus) }}
+                </p>
+                <p v-if="log.remark" class="alog-remark">{{ log.remark }}</p>
+              </el-timeline-item>
+            </el-timeline>
+          </SectionCard>
+        </aside>
+      </div>
     </template>
 
     <!-- 派单 / 改派弹窗 -->
@@ -553,6 +670,21 @@ async function submitCancel() {
   white-space: pre-wrap;
 }
 
+.adetail-detail-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.adetail-main-column,
+.adetail-side-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
 .adetail-images {
   display: flex;
   flex-direction: column;
@@ -579,10 +711,126 @@ async function submitCancel() {
   background: var(--color-bg-sunken);
 }
 
+.detail-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-content__section {
+  min-width: 0;
+}
+
+.detail-content__section:first-child {
+  padding-right: var(--space-5);
+}
+
+.detail-content__section:nth-child(2) {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-divider);
+}
+
+.detail-content__section:only-child {
+  grid-column: 1 / -1;
+  padding-inline: 0;
+  border-left: 0;
+}
+
+.detail-content__label {
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-1);
+}
+
+.detail-content__text {
+  max-width: 75ch;
+  color: var(--color-text-2);
+  line-height: var(--lh-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.detail-content__text--emphasis {
+  color: var(--color-text-1);
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-medium);
+}
+
+.detail-content__empty {
+  color: var(--color-text-3);
+  font-size: var(--fs-sm);
+}
+
+.evaluation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.evaluation-summary__time {
+  color: var(--color-text-3);
+  font-size: var(--fs-xs);
+}
+
+.evaluation-scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.evaluation-scores__item dt {
+  color: var(--color-text-3);
+  font-size: var(--fs-xs);
+}
+
+.evaluation-scores__item dd {
+  margin-top: var(--space-1);
+  color: var(--color-text-1);
+  font-weight: var(--fw-semibold);
+}
+
+.evaluation-detail {
+  margin-top: var(--space-4);
+}
+
 .adetail-worker {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+.adetail-worker__details {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.adetail-worker-card :deep(.empty-state.is-compact) {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+}
+
+.adetail-worker-card :deep(.empty-state__icon) {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0;
+  font-size: 18px;
+}
+
+.adetail-worker-card :deep(.empty-state__desc) {
+  display: none;
+}
+
+.adetail-worker-card :deep(.empty-state__actions) {
+  margin-top: 0;
 }
 
 .adetail-worker__name {
@@ -592,9 +840,23 @@ async function submitCancel() {
 }
 
 .adetail-worker__meta {
-  margin-top: 2px;
   font-size: var(--fs-sm);
   color: var(--color-text-3);
+}
+
+.adetail-worker__score {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--fs-xs);
+  line-height: 22px;
+}
+
+.adetail-sla-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .asla-box {
@@ -698,5 +960,28 @@ async function submitCancel() {
   font-size: var(--fs-sm);
   color: var(--color-text-2);
   line-height: var(--lh-base);
+}
+
+@media (max-width: 1023px) {
+  .adetail-detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .detail-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-content__section:first-child {
+    padding-right: 0;
+  }
+
+  .detail-content__section:nth-child(2) {
+    margin-top: var(--space-5);
+    padding: var(--space-4) 0 0;
+    border-top: 1px solid var(--color-divider);
+    border-left: 0;
+  }
 }
 </style>
