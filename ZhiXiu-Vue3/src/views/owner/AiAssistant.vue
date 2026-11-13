@@ -491,6 +491,11 @@ async function closeDraft() {
   draftEntryRef.value?.focus()
 }
 
+function toggleDraft() {
+  if (draftOpen.value) closeDraft()
+  else openDraft()
+}
+
 function openOrder() {
   if (orderId.value) router.push({ name: 'OwnerOrderDetail', params: { id: orderId.value } })
 }
@@ -634,6 +639,24 @@ onBeforeUnmount(() => {
         <header class="ai-panel__head">
           <span class="ai-panel__title truncate">{{ activeSession?.title || '智能维修助手' }}</span>
           <div class="ai-panel__tools">
+            <!-- 草稿入口与倒计时收进标题栏右侧，避免额外占用对话区高度 -->
+            <button
+              v-if="hasValidDraft"
+              ref="draftEntryRef"
+              class="ai-draft-chip"
+              :class="{ 'is-open': draftOpen }"
+              type="button"
+              :aria-expanded="draftOpen"
+              aria-controls="ai-draft-panel"
+              @click="toggleDraft"
+            >
+              <el-icon><Document /></el-icon>
+              <span>{{ draftOpen ? '收起草稿' : '查看工单草稿' }}</span>
+              <span class="ai-draft-chip__time text-mono">剩余 {{ draftCountdown }}</span>
+            </button>
+            <span v-else-if="draftExpired && sessionResolved === 0" class="ai-draft-chip is-expired" role="status">
+              草稿已过期
+            </span>
             <!-- 会话已生成工单时提供直达入口，重新进入会话也能查看 -->
             <el-button
               v-if="orderId"
@@ -648,24 +671,6 @@ onBeforeUnmount(() => {
             <span v-if="activeStreaming" class="ai-panel__hint" role="status">{{ streamHint }}</span>
           </div>
         </header>
-
-        <div v-if="hasValidDraft" class="ai-draft-entry">
-          <button
-            ref="draftEntryRef"
-            class="ai-draft-entry__button"
-            type="button"
-            :aria-expanded="draftOpen"
-            aria-controls="ai-draft-panel"
-            @click="openDraft"
-          >
-            <el-icon><Document /></el-icon>
-            <span>查看工单草稿</span>
-            <span class="ai-draft-entry__time text-mono">剩余 {{ draftCountdown }}</span>
-          </button>
-        </div>
-        <p v-else-if="draftExpired && sessionResolved === 0" class="ai-draft-expired" role="status">
-          草稿已过期，请在最新回答下重新生成。
-        </p>
 
         <div ref="listRef" class="ai-chat__list" role="region" aria-label="对话消息" tabindex="0">
           <AppSkeleton v-if="messagesLoading" variant="detail" :rows="4" />
@@ -913,6 +918,7 @@ onBeforeUnmount(() => {
 }
 
 .ai-panel__title {
+  min-width: 0;
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   color: var(--color-text-1);
@@ -1149,47 +1155,50 @@ onBeforeUnmount(() => {
   margin-left: 0;
 }
 
-.ai-draft-entry {
-  flex: 0 0 auto;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--color-divider);
-  background: var(--color-primary-soft);
-}
-
-.ai-draft-entry__button {
-  display: flex;
+/* 标题栏右侧的草稿入口：图标 + 文案 + 倒计时胶囊 */
+.ai-draft-chip {
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: var(--space-2);
-  width: 100%;
-  min-height: 36px;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: transparent;
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
   color: var(--color-primary);
-  text-align: left;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
   cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
-.ai-draft-entry__button:disabled,
+.ai-draft-chip:hover {
+  border-color: var(--color-primary);
+}
+
+.ai-draft-chip.is-open {
+  background: var(--color-bg-card);
+  border-color: var(--color-primary);
+}
+
+.ai-draft-chip__time {
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--color-primary-border);
+  color: var(--color-text-2);
+}
+
+.ai-draft-chip.is-expired,
+.ai-draft-chip.is-expired:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-3);
+  cursor: default;
+}
+
 .ai-session__main:disabled,
 .ai-session__delete:disabled {
   cursor: default;
   opacity: 0.6;
-}
-
-.ai-draft-entry__time {
-  margin-left: auto;
-  font-size: var(--fs-xs);
-}
-
-.ai-draft-expired {
-  flex: 0 0 auto;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-divider);
-  font-size: var(--fs-xs);
-  color: var(--color-text-2);
 }
 
 .ai-composer__resolved {
@@ -1319,9 +1328,12 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-  .ai-answer-actions__buttons :deep(.el-button),
-  .ai-draft-entry__button {
+  .ai-answer-actions__buttons :deep(.el-button) {
     min-height: 44px;
+  }
+
+  .ai-draft-chip {
+    height: 36px;
   }
 
   .ai-draft__body .grid-2 {
