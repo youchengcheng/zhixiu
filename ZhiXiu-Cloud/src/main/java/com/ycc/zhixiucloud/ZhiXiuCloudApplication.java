@@ -6,6 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableAsync;
 
+import java.util.TimeZone;
+
 /**
  * 智修云 · 物业报修系统后端启动类。
  *
@@ -24,6 +26,8 @@ public class ZhiXiuCloudApplication {
 
     /** 启动入口：初始化 Spring 上下文并加载 application.yml 中的各项配置。 */
     public static void main(String[] args) {
+        // 业务期限、恢复工具和 MQ 的绝对期限统一使用东八区。
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
         // 启动 Spring Boot 应用
         SpringApplication.run(ZhiXiuCloudApplication.class, args);
     }

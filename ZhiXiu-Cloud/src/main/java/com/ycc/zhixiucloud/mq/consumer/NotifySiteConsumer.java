@@ -1,62 +1,40 @@
 package com.ycc.zhixiucloud.mq.consumer;
 
+import com.rabbitmq.client.Channel;
 import com.ycc.zhixiucloud.common.constant.MqConstants;
 import com.ycc.zhixiucloud.dto.NotifyMessage;
 import com.ycc.zhixiucloud.mq.MqMessageCodec;
+import com.ycc.zhixiucloud.mq.RabbitConsumerHandler;
 import com.ycc.zhixiucloud.service.NotificationInboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.client.apis.consumer.ConsumeResult;
-import org.apache.rocketmq.client.apis.message.MessageView;
-import org.apache.rocketmq.client.core.RocketMQListener;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * 站内信消费者：订阅 notification-topic 的 SITE Tag，消费组 notify-site-consumer-group。
- *
- * <p>通知消息由 NotifyProducer 按通道扇出，本消费者只处理站内信通道。
- * 消息通过 NotificationInboxService 落库，notification.event_id 唯一索引保证重复投递幂等。
- * 消费失败返回 FAILURE，由 RocketMQ 重试；通知属于旁路能力，重试耗尽后进入死信队列，
- * 不影响工单主流程。</p>
+ * 站内信消费者：监听 notify-site-consumer-group。
+ * NotificationInboxService 调用现有服务幂等落库，notification.event_id 唯一索引保证重复投递幂等。
+ * 同一次投递共处理三次，耗尽后进入独立死信队列。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@RocketMQMessageListener(topic = MqConstants.TOPIC_NOTIFICATION,
-        consumerGroup = MqConstants.GROUP_NOTIFY_SITE,
-        tag = MqConstants.Notify.SITE,
-        sslEnabled = false)
-public class NotifySiteConsumer implements RocketMQListener {
+public class NotifySiteConsumer {
 
     private final MqMessageCodec mqMessageCodec;
 
+    private final RabbitConsumerHandler rabbitConsumerHandler;
+
     private final NotificationInboxService notificationInboxService;
 
-    /**
-     * 消费单条站内信消息：反序列化 → 交给 handle 处理 → 确认成功；
-     * 任何异常记录 messageId 与原始报文后返回 FAILURE 触发重试。
-     */
-    @Override
-    public ConsumeResult consume(MessageView messageView) {
-        // 解码与落库异常统一转为 FAILURE 交由 MQ 重试
-        try {
-            // 按 NotifyMessage 结构解码通知载荷
-            NotifyMessage message = mqMessageCodec.decode(messageView.getBody(), NotifyMessage.class);
-            // 站内信幂等落库
-            notificationInboxService.save(message);
-            // 记录落库成功关键信息
+    @RabbitListener(queues = MqConstants.GROUP_NOTIFY_SITE)
+    public void consume(Message message, Channel channel) {
+        rabbitConsumerHandler.handle(message, channel, () -> {
+            NotifyMessage notification = mqMessageCodec.decode(message.getBody(), NotifyMessage.class);
+            notificationInboxService.save(notification);
             log.info("站内通知落库成功：eventId={}, receiverId={}, orderId={}",
-                    message.eventId(), message.receiverId(), message.orderId());
-            // 处理完成，确认消费
-            return ConsumeResult.SUCCESS;
-        } catch (Exception e) {
-            // 解码或处理失败：打印原始报文便于排查，并让 MQ 重投
-            log.error("站内信消费失败：messageId={}, payload={}",
-                    messageView.getMessageId(), mqMessageCodec.toText(messageView.getBody()), e);
-            // 返回失败交由 MQ 重投
-            return ConsumeResult.FAILURE;
-        }
+                    notification.eventId(), notification.receiverId(), notification.orderId());
+        });
     }
-
 }

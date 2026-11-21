@@ -1,4 +1,4 @@
-﻿# 基于 Spring Boot 的物业报修系统 — 开发文档总览
+# 基于 Spring Boot 的物业报修系统 — 开发文档总览
 
 > 本文档为毕业设计《基于 Spring Boot 的物业报修系统的设计与实现》的开发文档集索引，包含技术栈、项目结构、配置、数据库、接口、前后端开发规范。
 > 目标：开发人员可据此直接开工，无需额外口头沟通。
@@ -13,7 +13,7 @@
 | `01-配置类与配置文件.md` | `application.yml` 全量配置、各配置类职责与 Bean 清单         |
 | `02-数据库设计.md`       | 16 张表 DDL、字段说明、索引、初始化数据                      |
 | `03-接口文档.md`         | 全部 REST 接口：URL、方法、权限、参数、响应、错误码          |
-| `04-后端开发文档.md`     | 包结构、分层规范、关键类清单、状态机、Redis/RocketMQ/Spring AI 使用 |
+| `04-后端开发文档.md`     | 包结构、分层规范、关键类清单、状态机、Redis/RabbitMQ/Spring AI 使用 |
 | `05-前端开发文档.md`     | 目录结构、路由、Pinia、API 封装、页面-接口映射、SSE 流式对接 |
 
 ---
@@ -38,7 +38,7 @@
                                     ↓ 用户点击或明确说生成工单草稿
                           AI 提取 8 个字段，草稿保存 15 分钟
                                     ↓ 一键确认
-                          生成工单 → RocketMQ 事件流
+                          生成工单 → RabbitMQ 事件流
                                     ↓
               派单/抢单 → 到场签到 → 处理 → 完工 → 评价
                                     ↓
@@ -63,7 +63,7 @@
 | ORM      | MyBatis-Plus                            | 3.5.7+        | `mybatis-plus-spring-boot3-starter` |
 | 数据库   | MySQL                                   | 8.0           | 业务数据                            |
 | 缓存/锁  | Redis + Redisson                        | 7.x / 3.27+   | 缓存、ZSet、分布式锁                |
-| 消息队列 | RocketMQ + rocketmq-spring-boot-starter | 5.5.x / 2.3.1 | 事件流 + 任意时间延迟消息           |
+| 消息队列 | RabbitMQ + spring-boot-starter-amqp | 4.0.9 / Boot 3.5.16 BOM | 事件流 + 延迟插件 v4.0.7 |
 | 对象存储 | MinIO                                   | 8.5.x         | 报修/完工图片                       |
 | 接口文档 | Knife4j                                 | 4.5.0         | OpenAPI 3（jakarta）                |
 | 工具     | Lombok / Hutool / MapStruct             | —             | 简化代码、字段映射                  |
@@ -109,7 +109,7 @@ property-repair-backend
 │   ├── dto/                              # 模块内部实体 DTO
 │   ├── request/                          # 入参 RequestVO
 │   ├── response/                         # 出参 ResponseVO
-│   ├── mq/                               # RocketMQ 生产者/消费者
+│   ├── mq/                               # RabbitMQ 生产者/消费者
 │   ├── ai/                               # Spring AI 相关（Tools、Assistant）
 │   └── statemachine/                     # 工单状态机
 ├── src/main/resources
@@ -155,13 +155,13 @@ property-repair-frontend
 | Node.js     | 18+   | 前端构建                                                  |
 | MySQL       | 8.0   | 端口 3306                                                 |
 | Redis Stack | 7.2+  | 端口 6379，**必须 Stack 版**（含 RediSearch，供向量检索） |
-| RocketMQ    | 5.5.x | Namesrv 9876，Broker 10911，Proxy 8081                    |
+| RabbitMQ | 4.0.9 | AMQP 5672、管理 15672；延迟插件 v4.0.7 |
 | MinIO       | 最新  | 端口 9000（API）、9001（控制台）                          |
 
 ### 本地启动顺序
 
 ```
-MySQL → Redis Stack → RocketMQ(Namesrv+Broker+Proxy) → MinIO → 后端 → 前端
+MySQL → Redis Stack → RabbitMQ（先安装延迟插件及死信 policy） → MinIO → 后端 → 前端
 ```
 
 ---
@@ -265,13 +265,28 @@ spring:
         initialize-schema: true
         vector-dimensions: 1024
 
-# ---------- RocketMQ ----------
-rocketmq:
-  name-server: localhost:9876
-  producer:
-    group: repair-producer-group
-    send-message-timeout: 3000
-    retry-times-when-send-failed: 2
+# ---------- RabbitMQ（仍位于 spring 下） ----------
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:youcc}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      type: simple
+      simple:
+        auto-startup: false
+        acknowledge-mode: manual
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 1
+        retry:
+          enabled: false
+    template:
+      retry:
+        enabled: false
 
 # ---------- MyBatis-Plus ----------
 mybatis-plus:
@@ -324,6 +339,8 @@ redisson:
 
 # ---------- 业务参数 ----------
 repair:
+  rabbitmq:
+    management-url: ${RABBITMQ_MANAGEMENT_URL:http://localhost:15672}
   sla:
     default-response-timeout: 120   # 分钟
     default-handle-timeout: 1440    # 分钟
@@ -378,7 +395,7 @@ logging:
 | `MybatisPlusConfig`      | `config`           | 分页插件、乐观锁插件、字段自动填充             |
 | `RedisConfig`            | `config`           | RedisTemplate 序列化、缓存 Key 前缀            |
 | `RedissonConfig`         | `config`           | 分布式锁客户端                                 |
-| `RocketMQConfig`         | `config`           | 生产者分组、发送超时、消费者并发               |
+| `RabbitMqConfig` | `config` | 双发送模板、手动 ACK、消费者并发；RabbitStartupGate 声明及核验拓扑 |
 | `SpringAiConfig`         | `ai`               | ChatClient、VectorStore、Tools 注册            |
 | `MinioConfig`            | `config`           | MinIO 客户端、Bucket 初始化                    |
 | `SecurityConfig`         | `security`         | 安全过滤链、放行白名单、密码编码器             |
@@ -425,14 +442,19 @@ logging:
 
 要点：抢单锁 `RLock` 由 `RedissonClient.getLock("lock:workorder:grab:{orderId}")` 获取。
 
-### 6.4 RocketMQConfig
+### 6.4 RabbitMqConfig
 
-| 项         | 说明                                                         |
-| ---------- | ------------------------------------------------------------ |
-| 生产者组   | `repair-producer-group`                                      |
-| 消费者并发 | 每个 `@RocketMQMessageListener` 默认 `consumeThreadMax=20`   |
-| 延迟消息   | 使用 `syncSend(topic:tag, msg, timeout, delaySeconds)` 传任意延迟秒数（RocketMQ 5.x 原生） |
-| 顺序消息   | 工单事件流按 `orderId` 哈希选择队列，`@RocketMQMessageListener(consumeMode = ORDERLY)` |
+| 项 | 说明 |
+|---|---|
+| 依赖 | `spring-boot-starter-amqp`，由 Spring Boot 3.5.16 BOM 管理 |
+| 发送模板 | 普通消息 `mandatory=true`；SLA 延迟消息 `mandatory=false`；correlated confirm 最多等待 3 秒 |
+| 消费者 | 全部 MANUAL ACK、并发 1、prefetch 1；同一次投递最多处理三次，失败间隔 1 秒、2 秒 |
+| SLA | `rabbitmq_delayed_message_exchange` v4.0.7；绝对 deadline，每段最多 24 小时，未到期确认续投后 ACK |
+| 工单串行 | 单队列、`x-single-active-consumer=true`、并发 1、prefetch 1；耗尽进入独立 DLQ 后继续 |
+| 拓扑门卫 | `RabbitStartupGate`：Exchange → Queue → Binding → 管理 API 核验有效 policy → 发送就绪 → 启动监听器 |
+| 管理地址 | `repair.rabbitmq.management-url`，环境变量 `RABBITMQ_MANAGEMENT_URL`，默认 `http://localhost:15672`，复用 RabbitMQ 凭证 |
+
+应用声明遇到参数冲突、插件缺失、管理 API 不可用或 policy 缺失时启动失败，保留既有消息，禁止自动删除重建。详见 `ZhiXiu-Cloud/docs/RABBITMQ-MIGRATION.md`。
 
 ### 6.5 SpringAiConfig（核心）
 
@@ -1503,7 +1525,7 @@ VALUES (2,NULL,NULL,'涉电',15,120,'ADMIN',100);
 - **方法**：`POST`
 - **路径**：`/api/ai/session/{id}/confirm`
 - **权限**：业主
-- **说明**：合并 AI 草稿 + 用户确认字段，生成正式工单并走 RocketMQ 事件流。后端重新校验会话进行中、草稿 ID 为最新有效草稿及 15 分钟有效期；重复提交同一份已成功提交的草稿返回原工单，避免重复建单。
+- **说明**：合并 AI 草稿 + 用户确认字段，生成正式工单并走 RabbitMQ 事件流。后端重新校验会话进行中、草稿 ID 为最新有效草稿及 15 分钟有效期；重复提交同一份已成功提交的草稿返回原工单，避免重复建单。
 
 | 参数              | 类型   | 必填 | 说明                                          |
 | ----------------- | ------ | ---- | --------------------------------------------- |
@@ -1731,7 +1753,7 @@ VALUES (2,NULL,NULL,'涉电',15,120,'ADMIN',100);
 - **方法**：`POST`
 - **路径**：`/api/worker/order/{id}/submit`
 - **权限**：师傅
-- **说明**：`GOING → SUBMITTED`，发 RocketMQ 事件。
+- **说明**：`GOING → SUBMITTED`，发 RabbitMQ 事件。
 
 | 参数         | 类型   | 必填 | 说明                   |
 | ------------ | ------ | ---- | ---------------------- |
@@ -2018,7 +2040,7 @@ VALUES (2,NULL,NULL,'涉电',15,120,'ADMIN',100);
 - **路径**：`/api/admin/knowledge`
 - **权限**：管理员
 - **Content-Type**：`multipart/form-data`（文件导入）；兼容 `application/json`（人工录入）。
-- **说明**：管理页面通过上传文件导入知识，保存后异步分片向量化（RocketMQ）。
+- **说明**：管理页面通过上传文件导入知识，保存后异步分片向量化（RabbitMQ）。
 
 | 参数       | 类型   | 必填         | 说明                                    |
 | ---------- | ------ | ------------ | --------------------------------------- |
@@ -2423,8 +2445,8 @@ VALUES (2,NULL,NULL,'涉电',15,120,'ADMIN',100);
 
 # 后端开发文档
 
-> 框架：Spring Boot 3.5.x + Spring AI 1.0.x + MyBatis-Plus + Redis/Redisson + RocketMQ + MinIO。
-> 本文档定义包结构、分层规范、关键类清单、状态机、Redis/RocketMQ/Spring AI 使用规范。
+> 框架：Spring Boot 3.5.x + Spring AI 1.0.x + MyBatis-Plus + Redis/Redisson + RabbitMQ + MinIO。
+> 本文档定义包结构、分层规范、关键类清单、状态机、Redis/RabbitMQ/Spring AI 使用规范。
 
 ---
 
@@ -2616,21 +2638,27 @@ public class WorkOrderStateMachine {
 
 ---
 
-## 六、RocketMQ 使用清单
+## 六、RabbitMQ 使用清单
 
-### 6.1 Topic / Tag
+### 6.1 Exchange / Routing Key / Queue
 
-| Topic                             | Tag                                                          | 生产者                                | 消费者                       | 用途                              |
-| --------------------------------- | ------------------------------------------------------------ | ------------------------------------- | ---------------------------- | --------------------------------- |
-| `workorder-event-topic`           | `CREATED/ASSIGNED/ACCEPTED/ARRIVE/PAUSE/RESUME/TRANSFER/SUBMITTED/COMPLETED/CANCELED` | `OrderEventProducer`                  | `OrderEventConsumer`（顺序） | 工单状态变更事件                  |
-| `sla-timeout-topic`               | `RESPONSE/HANDLE`                                            | `SlaProducer`                         | `SlaTimeoutConsumer`         | SLA 超时延迟消息                  |
-| `notification-topic`              | `SITE/SMS/PUSH`                                              | `NotifyProducer`                      | `NotifyConsumer` ×3          | 首期 SITE 落库，SMS/PUSH 保留占位 |
-| `operation-log-topic`             | `ACCESS`                                                     | `OperationLogService`（业务显式调用） | `OperationLogConsumer`       | 操作日志异步落库                  |
-| `ai-task-topic`                   | `VECTORIZE/SUMMARIZE`                                        | 知识库/工单服务                       | `AiTaskConsumer`             | 知识向量化、工单总结              |
-| `%DLQ%order-event-consumer-group` | —                                                            | RocketMQ 自动                         | 运维排查                     | 工单事件消费重试耗尽后的死信      |
-| `%DLQ%notify-site-consumer-group` | —                                                            | RocketMQ 自动                         | 运维排查                     | 站内通知落库重试耗尽后的死信      |
+原 Topic 保留为 Exchange 名称，Tag 保留为 Routing Key，消费组保留为 Queue 名称。
 
-### 6.2 消息体
+| Exchange | 类型 | Routing Key | Queue | 业务 |
+|---|---|---|---|---|
+| `workorder-event-topic` | direct | CREATED/ASSIGNED/ACCEPTED/ARRIVE/PAUSE/RESUME/TRANSFER/SUBMITTED/COMPLETED/CANCELED | `order-event-consumer-group` | 工单事件，收到后串行处理 |
+| `sla-timeout-topic` | x-delayed-message | RESPONSE/HANDLE | `sla-consumer-group` | SLA 延迟任务 |
+| `notification-topic` | direct | SITE | `notify-site-consumer-group` | 站内通知落库 |
+| `notification-topic` | direct | SMS | `notify-sms-consumer-group` | 短信占位日志 |
+| `notification-topic` | direct | PUSH | `notify-push-consumer-group` | 推送占位日志 |
+| `operation-log-topic` | direct | ACCESS | `operation-log-consumer-group` | 操作日志异步落库 |
+| `ai-task-topic` | direct | VECTORIZE/SUMMARIZE | `ai-task-consumer-group` | 知识向量化、工单总结占位 |
+
+SLA Exchange 设置 `x-delayed-type=direct`。共享持久化 direct DLX 为 `zhixiu.dead-letter`，七个业务组各有 `<消费组>.dlq`，DLX 以消费组名路由，合计 6 个 Exchange、14 个 Queue、25 个 Binding。
+
+全部 Exchange/Queue 持久化且不自动删除，业务队列及 DLQ 均为 quorum，不设置 TTL 或自动回灌。业务队列显式 `x-delivery-limit=-1`，工单队列额外 `x-single-active-consumer=true`。七个精确死信 policy 只匹配业务队列，指定 DLX、对应 group routing key、`dead-letter-strategy=at-least-once`、`overflow=reject-publish`。初始化脚本为 `ZhiXiu-Cloud/docs/rabbitmq-init.ps1`（PowerShell 7），应用只声明拓扑并核验实际有效 policy。
+
+### 6.2 消息体与可靠发送
 
 ```java
 public record WorkOrderEvent(
@@ -2645,31 +2673,43 @@ public record NotifyMessage(
     String receiverType, String title, String content,
     Long orderId, Long timestamp
 ) {}
+
+public record SlaTask(Long orderId, String type, Long deadline, Long timestamp) {}
 ```
 
-SITE 通知的 `eventId` 由原始业务事件 ID、接收人 ID 和通道共同派生；`notification.uk_event_id` 负责最终幂等。死信 Topic 按消费组生成，不按原 Topic 生成。
+五类 DTO 字段保持现有实现，继续由 `MqMessageCodec` 使用原 ObjectMapper 编解码 UTF-8 JSON `byte[]`；包装 Long 保持字符串格式。消息使用 `application/json`、UTF-8、PERSISTENT 与逻辑 messageId。
 
-### 6.3 延迟消息（SLA 关键）
+每次发送创建独立 CorrelationData，confirm 最多等待 3 秒。普通消息使用 `mandatory=true`，仅 ACK 且未 Return 才成功；SLA 使用独立 `mandatory=false` 模板，因为延迟插件不支持 mandatory。NACK、Return、超时或异常均为发送失败，保持原调用方的抛异常、捕获告警或 afterCommit 行为。
 
-```java
-// 发送：任意延迟秒数（RocketMQ 5.x 原生 timer wheel）
-rocketMQTemplate.syncSend("sla-timeout-topic:RESPONSE",
-    MessageBuilder.withPayload(new SlaTask(orderId, "RESPONSE")).build(),
-    3000, responseTimeoutSeconds);
+SITE 通知的 eventId 由原始业务事件 ID、接收人 ID 和通道派生，`notification.uk_event_id` 保持最终幂等。日志仍可能因至少一次投递重复。
 
-// 消费
-@RocketMQMessageListener(topic = "sla-timeout-topic",
-    selectorExpression = "RESPONSE || HANDLE", consumerGroup = "sla-consumer-group")
-public class SlaTimeoutConsumer implements RocketMQListener<SlaTask> {
-    public void onMessage(SlaTask task) {
-        // 工单已终态 → 忽略；否则标记 sla_escalated=1 + 通知管理员
-    }
-}
+### 6.3 SLA 绝对期限
+
+建单 insert 后在原事务内回读数据库实际保存的两个 deadline，再生成 `SlaTask(orderId, type, deadline, timestamp)`。DATETIME 为秒精度，不能直接用内存毫秒期限与数据库精确比较。缺工单或期限时显式失败并沿原事务传播。
+
+```text
+x-delay = max(1, min(deadline - 当前时间, 86_400_000)) 毫秒
 ```
 
-### 6.4 一致性
+每段最多 24 小时，业务 SLA 时限不新增上限。JVM、恢复工具及 deadline 转换统一使用 Asia/Shanghai。消费者校验类型与数据库当前 deadline、状态及里程碑：缺工单、已删除、已终止、对应里程碑已完成或已标记超时直接 ACK；期限不一致作为旧任务 ACK。
 
-工单入库 + 发事件在同一事务；如需强一致可改用 **RocketMQ 事务消息**（毕设可选加分项）。
+未到期则保留原消息体、deadline、timestamp、messageId，重新覆盖正数 x-delay（插件到达后旧 header 可能为负），续投 confirm 成功才 ACK 当前消息。到期调用原 `markResponseBreached(Long)` / `markHandleBreached(Long)`，保持首次标记后通知管理员。续投失败走统一三次处理和 SLA DLQ。
+
+### 6.4 消费、事务与失败
+
+全部监听器 MANUAL ACK、并发 1、prefetch 1。同一次投递业务失败后分别等待 1 秒、2 秒，最多处理三次；事务方法继续经 Spring 事务代理，重试在业务事务外。业务及事务提交完成后 ACK；第三次失败 `basicReject(deliveryTag, false)` 进入自己的 DLQ，随后处理后续消息。ACK/Reject 通道 I/O 异常时关闭通道，交 Broker 重投；连接中断后重投可能重新计数。
+
+工单单队列、SAC、并发 1、prefetch 1 只保证收到后的串行处理。DLQ 人工补投可晚于后续事件，跨生产连接的全局顺序不额外保证。工单事件及初始 SLA 发送失败继续触发原事务回滚，通知/操作日志/AI 保持现有事务边界及失败处理。数据库与 MQ 的非原子窗口和 SLA 标记提交后通知失败可能漏告警，作为既有风险保留。
+
+### 6.5 存量、恢复与运维
+
+普通存量先停写并在旧包排空六个普通组、全部 retry 和登记 DLQ；旧组最多 16 次重试，单次 lag=0 不能证明排空。旧 JVM 完全退出后再次快照，尾部消息需保持停写重新排空；旧 SLA 不要求排空，新旧 SLA 消费者不得并行。
+
+独立 `tools/mq-recovery` CLI 默认 preview，仅 SELECT、主键分页 500 条，按数据库原 deadline 建固定 manifest；显式 publish 前复核期限及状态并记录 CONFIRMED/FAILED/UNKNOWN/SKIPPED，重跑跳过确认项，不重算期限或清零标记。RESPONSE 恢复 PENDING/ASSIGNED 且 accepted_time 为空、响应未 breached 的有效期限；HANDLE 恢复 PENDING/ASSIGNED/ACCEPTED/GOING/PAUSED/TRANSFER_PENDING 且 submitted_time 为空、处理未 breached 的有效期限，均要求 deleted=0，不依据 sla_escalated 筛选。
+
+恢复写入后回滚先停写并排空 Rabbit 普通消息、登记 DLQ，停止新消费者，再按最新数据库 deadline 向 RocketMQ 恢复 SLA。旧客户端使用绝对 `deliveryTimestamp=max(now+1000ms,deadline)`，不得提前发分段消息；CLI 实查旧 Broker 有效延迟上限，任一任务超限立即停止简单回滚，保持停写修复新方案。完整步骤及验收见 `ZhiXiu-Cloud/docs/RABBITMQ-MIGRATION.md`。
+
+延迟插件已停止维护，等待消息是节点本地 Mnesia 单份持久化，quorum 不保护等待窗口；禁用插件会丢等待消息，confirm 不保证到期路由入队，到期仅尝试一次。单节点 quorum 无节点级高可用。保留旧 Broker、包、配置及历史验收记录；容器重建必须恢复原节点身份并重新安装启用插件，data 挂载不能单独恢复插件。
 
 ---
 
@@ -2740,7 +2780,7 @@ public class RepairAssistantTools {
 7. **AI 调用记录 token 与耗时**，写入 `ai_chat_message`
 8. **禁止硬编码**：密钥、地址、超时值全部配置化
 9. 统一使用 `Lombok`（`@Data`/`@Builder`）、`MapStruct` 做对象转换
-10. 单元测试覆盖状态机、SLA 匹配、抢单并发
+10. 使用真实链路验收状态机、SLA、抢单并发及 MQ 发送/消费故障，不新增单元测试
 
 ---
 

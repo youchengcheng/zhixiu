@@ -33,6 +33,29 @@ spring:
     async:
       request-timeout: 120000         # SSE 流式响应超时（毫秒），覆盖草稿结构化抽取
 
+  # RabbitMQ 确认发布，手工确认；监听器只能由拓扑门卫启动。
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:youcc}
+    password: ${RABBITMQ_PASSWORD:123456}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      type: simple
+      simple:
+        auto-startup: false
+        acknowledge-mode: manual
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 1
+        retry:
+          enabled: false
+    template:
+      retry:
+        enabled: false
+
   # ---------- 数据源 ----------
   # MySQL 8 驱动；主机、端口、库名均支持环境变量覆盖，冒号后为本地默认值
   datasource:
@@ -146,31 +169,12 @@ redisson:
   lock-wait-time: 0     # 秒，抢单锁立即返回
   lock-lease-time: 10   # 秒，锁自动释放
 
-# ---------- RocketMQ（5.x gRPC 客户端 + Broker 内嵌 Proxy） ----------
-# producer 供 RocketMQClientTemplate 发送；simple-consumer 与 push-consumer 为同一套连接参数：
-# @RocketMQMessageListener 的注解默认值取自 ${rocketmq.push-consumer.*} 占位符（starter 内置约定），
-# 因此这里必须显式给出 push-consumer 段，否则 endpoints 解析为空串导致消费端创建失败。
-# 本机 Broker 未开 ACL，access-key / secret-key 为占位非密钥，生产用环境变量覆盖。
-rocketmq:
-  producer:
-    endpoints: ${ROCKETMQ_ENDPOINTS:localhost:8081}
-    access-key: ${ROCKETMQ_ACCESS_KEY:}
-    secret-key: ${ROCKETMQ_SECRET_KEY:}
-    # 同步发送超时 3000ms；失败最多尝试 3 次（含首次）
-    request-timeout: 3000
-    max-attempts: 3
-  simple-consumer:
-    endpoints: ${ROCKETMQ_ENDPOINTS:localhost:8081}
-    access-key: ${ROCKETMQ_ACCESS_KEY:}
-    secret-key: ${ROCKETMQ_SECRET_KEY:}
-  push-consumer:
-    endpoints: ${ROCKETMQ_ENDPOINTS:localhost:8081}
-    access-key: ${ROCKETMQ_ACCESS_KEY:}
-    secret-key: ${ROCKETMQ_SECRET_KEY:}
 # ---------- 业务参数 ----------
 # 以下为业务参数：CORS 白名单见 WebMvcConfig，SLA 兜底时限见 SlaServiceImpl，
 # AI 追问上限见 AiAssistantServiceImpl，模型连接参数见 SpringAiConfig
 repair:
+  rabbitmq:
+    management-url: ${RABBITMQ_MANAGEMENT_URL:http://localhost:15672}
   cors:
     # 前端来源白名单，逗号分隔；默认放开全部，生产用 CORS_ALLOWED_ORIGINS 收紧
     allowed-origin-patterns: "${CORS_ALLOWED_ORIGINS:*}"
@@ -196,6 +200,6 @@ repair:
     # 对话模型名（流式问答）
     chat-model: ${DASHSCOPE_CHAT_MODEL:qwen3.8-flash}
     # 向量化模型名（知识库入库与检索共用）
-    embedding-model: ${DASHSCOPE_EMBEDDING_MODEL:qwen3.7-text-rerank}
+    embedding-model: ${DASHSCOPE_EMBEDDING_MODEL:text-embedding-v4}
     # 向量维度，必须与向量化模型输出一致，否则 RedisVectorStore 建索引/检索会失败
     vector-dimensions: ${AI_VECTOR_DIMENSIONS:1024}

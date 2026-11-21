@@ -7,7 +7,6 @@ import com.ycc.zhixiucloud.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -48,34 +47,20 @@ public class MqMessageCodec {
     /**
      * UTF-8 JSON 字节 -> 对象。
      * 反序列化失败通常意味着消息格式与当前 DTO 不兼容或消息体已损坏，
-     * 抛异常后由消费者返回 FAILURE，交给 RocketMQ 重试并最终进入死信。
+     * 抛异常后由统一消费处理器重试，耗尽后进入对应死信队列。
      */
     public <T> T decode(byte[] body, Class<T> type) {
         try {
             // 按目标 DTO 类型反序列化 JSON
             return objectMapper.readValue(body, type);
         } catch (Exception e) {
-            // 解码失败抛业务异常，由消费端返回 FAILURE 触发重试
+            // 解码失败抛业务异常，由统一消费处理器重试
             throw BizException.of(ResultCode.SYSTEM_ERROR, "MQ 消息反序列化失败：" + type.getSimpleName());
         }
     }
 
-    /** 消费端消息体 -> 对象：先把 ByteBuffer 剩余内容复制为字节数组，再走统一反序列化 */
-    public <T> T decode(ByteBuffer body, Class<T> type) {
-        // 按剩余可读长度分配数组
-        byte[] bytes = new byte[body.remaining()];
-        // 把缓冲区剩余内容读入数组
-        body.get(bytes);
-        // 复用字节数组解码逻辑
-        return decode(bytes, type);
-    }
-
-    /**
-     * 消费端消息体 -> 原始文本，消费失败时便于打印排查。
-     * 使用 duplicate() 复制游标，读取文本不会消耗原 ByteBuffer，不影响后续可能的解码/重试。
-     */
-    public String toText(ByteBuffer body) {
-        // 用副本游标解码，避免消耗原 ByteBuffer
-        return StandardCharsets.UTF_8.decode(body.duplicate()).toString();
+    /** 消费端消息体转换为原始文本，消费失败时便于打印排查。 */
+    public String toText(byte[] body) {
+        return new String(body, StandardCharsets.UTF_8);
     }
 }

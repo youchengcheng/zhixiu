@@ -1,22 +1,18 @@
 package com.ycc.zhixiucloud.common.constant;
 
 /**
- * RocketMQ Topic / Tag / 消费组常量。
+ * RabbitMQ Exchange / Routing Key / Queue 常量。
  *
- * <p>与开发文档「后端开发文档 · 六、RocketMQ 使用清单」一一对应，集中定义可避免
- * 生产端与消费端字符串不一致。发送时 destination 形如 topic + ":" + tag
- * （v5 gRPC 客户端按第一个冒号拆分），因此 Topic 名称本身不能包含冒号。</p>
+ * <p>与开发文档「后端开发文档 · 六、RabbitMQ 使用清单」一一对应。Exchange 保留原主题名，
+ * Queue 保留原消费组名，Routing Key 保留原事件值，集中定义避免生产端与消费端不一致。</p>
  *
  * <p>本类是纯常量工具类，禁止实例化；内部按业务域用静态嵌套类
- * （OrderEvent、SlaTimeout、Notify 等）对 Tag 分组。</p>
+ * （OrderEvent、SlaTimeout、Notify 等）对 Routing Key 分组。</p>
  */
 public final class MqConstants {
 
-    /** Topic 与 Tag 的分隔符 */
-    public static final String DESTINATION_SEPARATOR = ":";
-
-    /** 消费全部 Tag */
-    public static final String TAG_ALL = "*";
+    /** 各业务队列共享的死信 Exchange */
+    public static final String EXCHANGE_DEAD_LETTER = "zhixiu.dead-letter";
 
     /** 工单状态变更事件 */
     public static final String TOPIC_WORK_ORDER_EVENT = "workorder-event-topic";
@@ -33,53 +29,51 @@ public final class MqConstants {
     /** 知识向量化、工单总结 */
     public static final String TOPIC_AI_TASK = "ai-task-topic";
 
-    /** 工单事件消费组（顺序消费） */
+    /** 工单事件队列（单活串行消费） */
     public static final String GROUP_ORDER_EVENT = "order-event-consumer-group";
 
-    /** SLA 超时消费组 */
+    /** SLA 超时队列 */
     public static final String GROUP_SLA_TIMEOUT = "sla-consumer-group";
 
-    /** 站内信消费组 */
+    /** 站内信队列 */
     public static final String GROUP_NOTIFY_SITE = "notify-site-consumer-group";
 
-    /** 短信消费组 */
+    /** 短信队列 */
     public static final String GROUP_NOTIFY_SMS = "notify-sms-consumer-group";
 
-    /** 推送消费组 */
+    /** 推送队列 */
     public static final String GROUP_NOTIFY_PUSH = "notify-push-consumer-group";
 
-    /** 操作日志消费组 */
+    /** 操作日志队列 */
     public static final String GROUP_OPERATION_LOG = "operation-log-consumer-group";
 
-    /** AI 任务消费组 */
+    /** AI 任务队列 */
     public static final String GROUP_AI_TASK = "ai-task-consumer-group";
 
-    /** 工单事件死信队列，RocketMQ 按原消费组生成 */
-    public static final String DLQ_WORK_ORDER_EVENT = "%DLQ%" + GROUP_ORDER_EVENT;
+    /** 工单事件独立死信队列 */
+    public static final String DLQ_WORK_ORDER_EVENT = GROUP_ORDER_EVENT + ".dlq";
 
-    /** 站内信死信队列，RocketMQ 按原消费组生成 */
-    public static final String DLQ_NOTIFY_SITE = "%DLQ%" + GROUP_NOTIFY_SITE;
+    /** 站内信独立死信队列 */
+    public static final String DLQ_NOTIFY_SITE = GROUP_NOTIFY_SITE + ".dlq";
 
     private MqConstants() {
     }
 
     /**
-     * 拼接 RocketMQ destination。
+     * 得到业务队列对应的独立死信队列名称。
      *
-     * @param topic 消息主题，不能为空且不能包含冒号
-     * @param tag   消息标签，可为 {@link #TAG_ALL}
-     * @return 形如 {@code topic:tag} 的 destination
+     * @param group 业务队列名称
+     * @return 形如 {@code group.dlq} 的队列名称
      */
-    public static String destination(String topic, String tag) {
-        // 以第一个冒号分隔 topic 与 tag
-        return topic + DESTINATION_SEPARATOR + tag;
+    public static String dlq(String group) {
+        return group + ".dlq";
     }
 
     /**
-     * 工单状态变更事件 Tag。
+     * 工单状态变更事件 Routing Key。
      *
      * <p>与 {@link com.ycc.zhixiucloud.common.enums.OrderActionEnum#getEventTag()}
-     * 的取值保持一致，生产端通常由状态机根据动作选择对应 Tag。</p>
+     * 的取值保持一致，生产端通常由状态机根据动作选择对应 Routing Key。</p>
      */
     public static final class OrderEvent {
 
@@ -117,7 +111,7 @@ public final class MqConstants {
         }
     }
 
-    /** SLA 超时延迟消息 Tag */
+    /** SLA 超时延迟消息 Routing Key */
     public static final class SlaTimeout {
 
         /** 响应超时 */
@@ -126,14 +120,11 @@ public final class MqConstants {
         /** 处理超时 */
         public static final String HANDLE = "HANDLE";
 
-        /** 订阅表达式：同时消费两类超时 */
-        public static final String TAG_EXPRESSION = RESPONSE + " || " + HANDLE;
-
         private SlaTimeout() {
         }
     }
 
-    /** 通知通道 Tag */
+    /** 通知通道 Routing Key */
     public static final class Notify {
 
         /** 站内信 */
@@ -149,7 +140,7 @@ public final class MqConstants {
         }
     }
 
-    /** 操作日志 Tag */
+    /** 操作日志 Routing Key */
     public static final class OperationLog {
 
         /** 接口访问日志 */
@@ -159,7 +150,7 @@ public final class MqConstants {
         }
     }
 
-    /** AI 任务 Tag */
+    /** AI 任务 Routing Key */
     public static final class AiTask {
 
         /** 知识向量化 */

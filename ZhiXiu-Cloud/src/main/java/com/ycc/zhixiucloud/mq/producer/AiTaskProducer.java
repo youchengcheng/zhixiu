@@ -3,14 +3,16 @@ package com.ycc.zhixiucloud.mq.producer;
 import com.ycc.zhixiucloud.common.constant.MqConstants;
 import com.ycc.zhixiucloud.dto.AiTaskMessage;
 import com.ycc.zhixiucloud.mq.MqMessageCodec;
+import com.ycc.zhixiucloud.mq.RabbitMessagePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.core.RocketMQClientTemplate;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 /**
  * AI 任务生产者：向 ai-task-topic 投递知识向量化 / 工单总结任务。
- * Tag 分别为 VECTORIZE / SUMMARIZE，对应消费组 ai-task-consumer-group。
+ * Routing Key 分别为 VECTORIZE / SUMMARIZE，对应队列 ai-task-consumer-group。
  *
  * <p>发送方式：同步普通消息，发送线程会等待 Broker 确认，但耗时通常很短；
  * AI 任务属于异步旁路能力，投递失败只记警告日志，不影响主业务——
@@ -21,7 +23,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AiTaskProducer {
 
-    private final RocketMQClientTemplate rocketMQClientTemplate;
+    private final RabbitMessagePublisher rabbitMessagePublisher;
 
     private final MqMessageCodec mqMessageCodec;
 
@@ -31,15 +33,14 @@ public class AiTaskProducer {
      * @param knowledgeId 知识条目 ID
      */
     public void sendVectorize(Long knowledgeId) {
-        // 拼接 destination：ai-task-topic:VECTORIZE
-        String destination = MqConstants.destination(MqConstants.TOPIC_AI_TASK, MqConstants.AiTask.VECTORIZE);
         // 组装任务消息，只带知识条目 ID
         AiTaskMessage message = new AiTaskMessage(MqConstants.AiTask.VECTORIZE, knowledgeId, null,
                 System.currentTimeMillis());
         // 同步投递，失败只告警不阻断主流程
         try {
             // 编码消息体后同步投递
-            rocketMQClientTemplate.syncSendNormalMessage(destination, mqMessageCodec.encode(message));
+            rabbitMessagePublisher.publish(MqConstants.TOPIC_AI_TASK, MqConstants.AiTask.VECTORIZE,
+                    mqMessageCodec.encode(message), UUID.randomUUID().toString());
             // 记录投递成功
             log.info("投递知识向量化任务：knowledgeId={}", knowledgeId);
         } catch (Exception e) {
@@ -55,15 +56,14 @@ public class AiTaskProducer {
      * @param orderId 工单 ID
      */
     public void sendSummarize(Long orderId) {
-        // 拼接 destination：ai-task-topic:SUMMARIZE
-        String destination = MqConstants.destination(MqConstants.TOPIC_AI_TASK, MqConstants.AiTask.SUMMARIZE);
         // 组装任务消息，只带工单 ID
         AiTaskMessage message = new AiTaskMessage(MqConstants.AiTask.SUMMARIZE, null, orderId,
                 System.currentTimeMillis());
         // 同步投递，失败只告警不阻断主流程
         try {
             // 编码消息体后同步投递
-            rocketMQClientTemplate.syncSendNormalMessage(destination, mqMessageCodec.encode(message));
+            rabbitMessagePublisher.publish(MqConstants.TOPIC_AI_TASK, MqConstants.AiTask.SUMMARIZE,
+                    mqMessageCodec.encode(message), UUID.randomUUID().toString());
             // 记录投递成功
             log.info("投递工单总结任务：orderId={}", orderId);
         } catch (Exception e) {

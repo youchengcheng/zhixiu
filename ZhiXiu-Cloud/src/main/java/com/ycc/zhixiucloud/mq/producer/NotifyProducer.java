@@ -3,9 +3,9 @@ package com.ycc.zhixiucloud.mq.producer;
 import com.ycc.zhixiucloud.common.constant.MqConstants;
 import com.ycc.zhixiucloud.dto.NotifyMessage;
 import com.ycc.zhixiucloud.mq.MqMessageCodec;
+import com.ycc.zhixiucloud.mq.RabbitMessagePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.core.RocketMQClientTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -24,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class NotifyProducer {
 
-    private final RocketMQClientTemplate rocketMQClientTemplate;
+    private final RabbitMessagePublisher rabbitMessagePublisher;
 
     private final MqMessageCodec mqMessageCodec;
 
@@ -52,7 +52,7 @@ public class NotifyProducer {
     }
 
     /**
-     * 统一发送入口：组装消息体后按「topic:channel」同步投递。
+     * 统一发送入口：组装消息体后以通道作为 Routing Key 同步投递。
      * 无接收人直接返回；发送异常被吞掉并记录错误日志，保证通知失败不反向影响业务事务。
      */
     private void send(String eventId, String channel, Long receiverId, String receiverType,
@@ -64,12 +64,11 @@ public class NotifyProducer {
         // eventId 作为消费端追踪和通知表幂等标识
         NotifyMessage message = new NotifyMessage(eventId, channel, receiverId,
                 receiverType, title, content, orderId, System.currentTimeMillis());
-        // destination 形如 notification-topic:SITE
-        String destination = MqConstants.destination(MqConstants.TOPIC_NOTIFICATION, channel);
         // 同步发送，异常由下面的 catch 吞掉不影响业务
         try {
             // 同步发送：通知量小且需要尽快反馈，失败也不重试
-            rocketMQClientTemplate.syncSendNormalMessage(destination, mqMessageCodec.encode(message));
+            rabbitMessagePublisher.publish(MqConstants.TOPIC_NOTIFICATION, channel,
+                    mqMessageCodec.encode(message), eventId);
             // 记录投递成功信息
             log.info("通知投递成功：channel={}, receiverId={}, orderId={}, title={}",
                     channel, receiverId, orderId, title);

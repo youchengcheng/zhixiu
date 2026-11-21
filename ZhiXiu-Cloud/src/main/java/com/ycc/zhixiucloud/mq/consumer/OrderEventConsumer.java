@@ -1,72 +1,57 @@
 package com.ycc.zhixiucloud.mq.consumer;
 
+import com.rabbitmq.client.Channel;
 import com.ycc.zhixiucloud.common.constant.MqConstants;
 import com.ycc.zhixiucloud.common.enums.OperatorTypeEnum;
 import com.ycc.zhixiucloud.common.enums.OrderStatusEnum;
 import com.ycc.zhixiucloud.dto.WorkOrderEvent;
 import com.ycc.zhixiucloud.mq.MqMessageCodec;
+import com.ycc.zhixiucloud.mq.RabbitConsumerHandler;
 import com.ycc.zhixiucloud.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.client.apis.consumer.ConsumeResult;
-import org.apache.rocketmq.client.apis.message.MessageView;
-import org.apache.rocketmq.client.core.RocketMQListener;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * 工单事件消费者：订阅 workorder-event-topic 全部 Tag，消费组 order-event-consumer-group。
- * 单线程消费保证同一队列内事件按序处理；按事件类型扇出通知。
+ * 工单事件消费者：监听 order-event-consumer-group，按事件类型扇出通知。
  *
- * <p>顺序性：生产端以 orderId 作为消息组发送 FIFO 消息，同一工单的事件进入同一队列，
- * 再配合 consumptionThreadCount=1，保证单实例内串行处理，避免通知乱序。</p>
+ * <p>顺序性：单队列、Single Active Consumer、并发 1 和 prefetch 1 保证收到消息后串行处理。
+ * 死信人工补投可能晚于后续事件，跨生产连接的全局发布顺序不作额外保证。</p>
  *
  * <p>幂等性：原工单事件 eventId 会继续传给通知服务，并与接收人、通道共同派生
  * 站内通知 eventId；上游事件重投和 notification-topic 重投都会被通知表唯一索引去重。</p>
  *
- * <p>失败处理：消费失败返回 FAILURE，交由 RocketMQ 重试，重试耗尽进
+ * <p>失败处理：同一次投递共处理三次，耗尽后拒绝并进入
  * {@link MqConstants#DLQ_WORK_ORDER_EVENT}，可人工排查后补偿。</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@RocketMQMessageListener(topic = MqConstants.TOPIC_WORK_ORDER_EVENT,
-        consumerGroup = MqConstants.GROUP_ORDER_EVENT,
-        tag = MqConstants.TAG_ALL,
-        sslEnabled = false,
-        consumptionThreadCount = 1)
-public class OrderEventConsumer implements RocketMQListener {
+public class OrderEventConsumer {
 
     private final MqMessageCodec mqMessageCodec;
+
+    private final RabbitConsumerHandler rabbitConsumerHandler;
 
     private final NotificationService notificationService;
 
     /**
-     * 消费单条工单事件：反序列化 → 打印流转信息 → dispatch 扇出通知 → 返回 SUCCESS。
-     * 解码或通知过程出现异常时返回 FAILURE，由 MQ 重投。
+     * 消费单条工单事件，业务完成后由统一处理器确认消息。
      */
-    @Override
-    public ConsumeResult consume(MessageView messageView) {
-        // 事件对象先置空，便于失败时定位
-        WorkOrderEvent event = null;
-        try {
+    @RabbitListener(queues = MqConstants.GROUP_ORDER_EVENT)
+    public void consume(Message message, Channel channel) {
+        rabbitConsumerHandler.handle(message, channel, () -> {
             // 反序列化消息体为工单事件
-            event = mqMessageCodec.decode(messageView.getBody(), WorkOrderEvent.class);
+            WorkOrderEvent event = mqMessageCodec.decode(message.getBody(), WorkOrderEvent.class);
             // 打印事件流转信息，便于追踪
             log.info("收到工单事件：orderId={}, event={}, {} -> {}, operatorType={}",
                     event.orderId(), event.eventType(), event.fromStatus(), event.toStatus(),
                     event.operatorType());
             // 按事件类型扇出通知
             dispatch(event);
-            // 处理成功，确认消息
-            return ConsumeResult.SUCCESS;
-        } catch (Exception e) {
-            // 记录失败日志并返回 FAILURE 触发 MQ 重试
-            log.error("工单事件消费失败：messageId={}, payload={}",
-                    messageView.getMessageId(), mqMessageCodec.toText(messageView.getBody()), e);
-            // 消费失败，交由 MQ 重试
-            return ConsumeResult.FAILURE;
-        }
+        });
     }
 
     /**
@@ -90,7 +75,7 @@ public class OrderEventConsumer implements RocketMQListener {
                     event.eventId(), "新报修工单待派单", summary + "已提交，请及时派单。", orderId);
             // 派单相关事件：可能是超时回退，也可能是新派单
             case MqConstants.OrderEvent.ASSIGNED -> {
-                // 同一 Tag 覆盖「派单」与「超时未接单回退」，按目标状态区分
+                // 同一路由键覆盖「派单」与「超时未接单回退」，按目标状态区分
                 if (OrderStatusEnum.PENDING.getCode().equals(event.toStatus())) {
                     // 已回退待接单池：提醒管理员
                     notificationService.notifyAdmins(event.eventId(), "派单超时未接单",
@@ -125,7 +110,7 @@ public class OrderEventConsumer implements RocketMQListener {
             case MqConstants.OrderEvent.SUBMITTED -> notificationService.notifyOwner(
                     event.eventId(), longValue(event, "ownerId"), "师傅已提交完工",
                     summary + "已提交完工，请确认并评价。", orderId);
-            // COMPLETE Tag 同时覆盖确认完工与评价关单，按目标状态区分通知语义
+            // COMPLETED 路由键同时覆盖确认完工与评价关单，按目标状态区分通知语义
             case MqConstants.OrderEvent.COMPLETED -> {
                 Long workerId = longValue(event, "acceptedWorkerId");
                 if (OrderStatusEnum.COMPLETED.getCode().equals(event.toStatus())) {

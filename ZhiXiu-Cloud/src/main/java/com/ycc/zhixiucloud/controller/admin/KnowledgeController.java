@@ -56,7 +56,7 @@ public class KnowledgeController {
     @ApiLog(module = "知识库", action = "新增知识")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public Result<Long> create(@Valid @RequestBody KnowledgeSaveRequestVO requestVO) {
-        // 保存知识后投递 RocketMQ 异步向量化，接口立即返回，避免阻塞管理员操作
+        // 保存知识后投递 RabbitMQ 异步向量化，接口立即返回，避免阻塞管理员操作
         Long id = repairKnowledgeService.create(requestVO);
         // 返回成功提示（已投递异步向量化）
         return Result.ok(id, "知识已保存，正在向量化");
