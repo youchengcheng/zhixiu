@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
+import { useAppStore } from '@/stores/app'
 import LetterAvatar from '@/components/LetterAvatar.vue'
 import AppBreadcrumb from './AppBreadcrumb.vue'
 import { ArrowDown, Bell, Expand, Fold } from '@element-plus/icons-vue'
@@ -16,10 +17,24 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle'])
 
+const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const notificationStore = useNotificationStore()
+const appStore = useAppStore()
 let unreadTimer = null
+
+// 业主端顶部是服务导航，标题仍留在内容区；后台与师傅端标题上移到顶部栏。
+const isOwner = computed(() => userStore.roleCode === 'OWNER')
+const pageTitle = computed(() => appStore.pageTitle || route.meta?.title || '')
+
+// 路由切换时先清空，等待新页面 PageHeader 写入标题。
+watch(
+  () => route.path,
+  () => {
+    appStore.pageTitle = ''
+  }
+)
 
 const roleLabel = computed(() => ROLE[userStore.roleCode]?.text || userStore.roleName || '')
 
@@ -81,6 +96,8 @@ async function onCommand(command) {
     >
       <el-icon><Expand v-if="props.collapsed" /><Fold v-else /></el-icon>
     </button>
+
+    <h1 v-if="!isOwner" class="top-bar__title" :title="pageTitle">{{ pageTitle }}</h1>
 
     <AppBreadcrumb v-if="!props.serviceNavigation" class="top-bar__crumb" />
     <slot name="navigation" />
@@ -153,6 +170,20 @@ async function onCommand(command) {
   color: var(--color-text-1);
 }
 
+.top-bar__title {
+  min-width: 0;
+  max-width: 260px;
+  margin: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+  color: var(--color-text-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .top-bar__crumb {
   min-width: 0;
 }
@@ -214,9 +245,13 @@ async function onCommand(command) {
     display: none;
   }
 
-  .top-bar__crumb {
+  .top-bar__title {
     flex: 1;
-    overflow: hidden;
+    max-width: none;
+  }
+
+  .top-bar__crumb {
+    display: none;
   }
 }
 </style>

@@ -14,7 +14,9 @@ export const useAppStore = defineStore('app', {
   state: () => ({
     sidebarCollapsed: readCollapsed(),
     mobileNavOpen: false,
-    loadingCount: 0
+    loadingCount: 0,
+    // 由 PageHeader 写入，顶部栏据此展示当前页面标题
+    pageTitle: ''
   }),
 
   getters: {
