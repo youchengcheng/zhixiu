@@ -136,21 +136,25 @@ export const authHandlers = [
     handler: ({ body }) => {
       const username = String(body.username || '').trim()
       const phone = String(body.phone || '').trim()
+      const realName = String(body.realName || '').trim()
 
-      if (username.length < 4 || username.length > 20) return fail(400, '登录名需为 4-20 位')
+      if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$/.test(username))
+        return fail(400, '登录名需 3-20 位字母、数字、下划线或汉字')
       if (String(body.password || '').length < 6 || String(body.password || '').length > 20)
         return fail(400, '密码需为 6-20 位')
       if (body.password !== body.confirmPassword) return fail(400, '两次输入的密码不一致')
+      if (realName.length > 20) return fail(400, '真实姓名不能超过 20 字')
       if (!/^1[3-9]\d{9}$/.test(phone)) return fail(400, '请输入正确的手机号')
       if (accounts.some((item) => item.username === username)) return fail(1001, '用户名已存在')
-      if (phone && accounts.some((item) => item.phone === phone)) return fail(1002, '手机号已注册')
+      if (accounts.some((item) => item.phone === phone && item.roleCode === 'OWNER'))
+        return fail(1002, '手机号已注册')
 
       const id = nextId()
       accounts.push({
         id,
         username,
         password: 'mock',
-        realName: String(body.realName || '').trim() || username,
+        realName: realName || username,
         phone,
         email: '',
         avatar: '',
@@ -173,25 +177,34 @@ export const authHandlers = [
     handler: ({ body }) => {
       const username = String(body.username || '').trim()
       const phone = String(body.phone || '').trim()
-      const workerNo = String(body.workerNo || '').trim()
+      const realName = String(body.realName || '').trim()
 
-      if (username.length < 4 || username.length > 20) return fail(400, '登录名需为 4-20 位')
-      if (String(body.password || '').length < 6) return fail(400, '密码需为 6-20 位')
+      if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$/.test(username))
+        return fail(400, '登录名需 3-20 位字母、数字、下划线或汉字')
+      if (String(body.password || '').length < 6 || String(body.password || '').length > 20)
+        return fail(400, '密码需为 6-20 位')
       if (body.password !== body.confirmPassword) return fail(400, '两次输入的密码不一致')
-      if (!String(body.realName || '').trim()) return fail(400, '请填写真实姓名')
+      if (!realName) return fail(400, '请填写真实姓名')
+      if (realName.length > 20) return fail(400, '真实姓名不能超过 20 字')
       if (!/^1[3-9]\d{9}$/.test(phone)) return fail(400, '请输入正确的手机号')
-      if (!workerNo) return fail(400, '请填写工号')
       if (!String(body.skillTags || '').trim()) return fail(400, '请选择技能标签')
       if (accounts.some((item) => item.username === username)) return fail(1001, '用户名已存在')
-      if (accounts.some((item) => item.phone === phone)) return fail(1002, '手机号已注册')
-      if (accounts.some((item) => item.workerNo === workerNo)) return fail(1001, '工号已存在')
+      if (accounts.some((item) => item.phone === phone && item.roleCode === 'WORKER'))
+        return fail(1002, '手机号已注册')
+
+      let workerNo
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        workerNo = `WK${Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('')}`
+        if (!accounts.some((item) => item.workerNo === workerNo)) break
+        if (attempt === 2) return fail(409, '工号生成冲突，请重新提交注册')
+      }
 
       const id = nextId()
       accounts.push({
         id,
         username,
         password: 'mock',
-        realName: String(body.realName).trim(),
+        realName,
         phone,
         email: '',
         avatar: '',

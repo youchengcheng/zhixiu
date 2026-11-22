@@ -46,10 +46,10 @@ public interface AuthService {
      * maintenance_worker 保存工号、技能标签与审核状态。注册后审核状态为待审核、
      * 工作状态为审核中，管理员审核通过前无法登录接单。</p>
      *
-     * @param requestVO 注册信息（账号信息、工号、技能标签、身份证号等）
+     * @param requestVO 注册信息（账号信息、技能标签、身份证号等），工号由系统生成
      * @return 新用户 ID（注意不是 maintenance_worker.id）
      * @throws com.ycc.zhixiucloud.common.exception.BizException 密码不一致（400）、
-     *         登录名/手机号重复（1001/1002）、工号已存在（409）
+     *         登录名/手机号重复（1001/1002）、工号生成冲突且重试耗尽（409）
      */
     RegisterResponseVO registerWorker(WorkerRegisterRequestVO requestVO);
 
