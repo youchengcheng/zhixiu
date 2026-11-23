@@ -10,12 +10,12 @@ import com.ycc.zhixiucloud.dto.OperationLogMessage;
 import com.ycc.zhixiucloud.entity.OperationLog;
 import com.ycc.zhixiucloud.mapper.OperationLogMapper;
 import com.ycc.zhixiucloud.mq.MqMessageCodec;
+import com.ycc.zhixiucloud.mq.RabbitMessagePublisher;
 import com.ycc.zhixiucloud.request.OperationLogQueryRequestVO;
 import com.ycc.zhixiucloud.response.OperationLogResponseVO;
 import com.ycc.zhixiucloud.service.OperationLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.core.RocketMQClientTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -24,11 +24,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.UUID;
 
 /**
  * 操作日志实现：采集端投递 MQ，消费端落库，查询端只读。
  *
- * <p>整体链路：AOP 切面采集请求信息 → {@link #record} 投递 RocketMQ →
+ * <p>整体链路：AOP 切面采集请求信息 → {@link #record} 投递 RabbitMQ →
  * 消费者调用 {@link #save} 写入 operation_log 表 → {@link #page} 提供后台分页查询。</p>
  *
  * <p>关键设计：日志属于旁路能力，MQ 投递失败仅记录告警，不阻断正常业务请求；
@@ -50,26 +51,25 @@ public class OperationLogServiceImpl implements OperationLogService {
 
     private final OperationLogMapper operationLogMapper;
 
-    private final RocketMQClientTemplate rocketMQClientTemplate;
+    private final RabbitMessagePublisher rabbitMessagePublisher;
 
     private final MqMessageCodec mqMessageCodec;
 
     /**
      * 投递一条操作日志消息到 MQ。
      *
-     * <p>日志采集与主业务解耦：即使 RocketMQ 不可用也只记录告警日志，
+     * <p>日志采集与主业务解耦：即使 RabbitMQ 不可用也只记录告警日志，
      * 不向调用方抛出异常，避免影响正常请求。</p>
      *
      * @param message 操作日志消息（请求信息、结果、耗时等）
      */
     @Override
     public void record(OperationLogMessage message) {
-        // 拼接 destination：operation-log-topic:ACCESS
-        String destination = MqConstants.destination(MqConstants.TOPIC_OPERATION_LOG, MqConstants.OperationLog.ACCESS);
         // 投递失败仅告警，不影响主业务流程
         try {
             // 编码消息体后同步投递到 MQ
-            rocketMQClientTemplate.syncSendNormalMessage(destination, mqMessageCodec.encode(message));
+            rabbitMessagePublisher.publish(MqConstants.TOPIC_OPERATION_LOG, MqConstants.OperationLog.ACCESS,
+                    mqMessageCodec.encode(message), UUID.randomUUID().toString());
         // 捕获投递异常，避免影响正常请求
         } catch (Exception e) {
             // 日志采集属于旁路能力，MQ 不可用时不能影响正常业务请求

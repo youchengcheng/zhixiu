@@ -13,7 +13,7 @@ import com.ycc.zhixiucloud.entity.WorkOrder;
  * SLA 超时消息消费者（标记超时升级）。</p>
  *
  * <p>关键实现要点：规则按 category_id + urgency + safety_flag + affect_scope 四维匹配，
- * 命中维度越多优先级越高；超时任务通过 RocketMQ 延迟消息实现，响应与处理各一条；
+ * 命中维度越多优先级越高；超时任务通过 RabbitMQ 延迟消息实现，响应与处理各一条；
  * 标记超时前会先用状态缓存做快速判断，命中后再回数据库做幂等校验。</p>
  */
 public interface SlaService {
@@ -47,10 +47,10 @@ public interface SlaService {
     void applyDeadlines(WorkOrder order, SlaConfig slaConfig);
 
     /**
-     * 投递响应超时与处理超时两条 RocketMQ 延迟消息。
+     * 投递响应超时与处理超时两条 RabbitMQ 延迟消息。
      *
-     * <p>消息到达时间分别为工单的 slaResponseDeadline 与 slaHandleDeadline；
-     * 消费方会再次校验工单是否已达标，避免误判。</p>
+     * <p>在工单插入后的原事务内回读数据库保存的秒精度期限并生成任务；
+     * 消费方核对当前期限、状态及里程碑，未到期时继续分段投递，避免误判。</p>
      *
      * @param order 已完成超时点计算的工单
      */

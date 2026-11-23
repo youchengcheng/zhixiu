@@ -20,7 +20,7 @@ import java.util.List;
  *
  * <p>关键实现要点：</p>
  * <ul>
- *   <li>新增/修改后通过 RocketMQ 投递向量化任务，由 AiTaskConsumer 异步执行；</li>
+ *   <li>新增/修改后通过 RabbitMQ 投递向量化任务，由 AiTaskConsumer 异步执行；</li>
  *   <li>修改会把条目标记为未向量化并递增版本号，向量化完成后再次回写标记；</li>
  *   <li>向量库 Bean 可能因未配置 AI 而缺失，所有向量操作均做判空降级，不阻断知识 CRUD；</li>
  *   <li>正文分片后写入向量库，分片 ID 清单用于完整覆盖和删除。</li>

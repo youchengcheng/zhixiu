@@ -58,7 +58,7 @@ import java.util.zip.ZipInputStream;
  * <p>关键设计：</p>
  * <ul>
  *   <li>写库与向量化解耦：新增/修改只负责 MySQL 落库并标记 {@code vectorized=0}，随后向
- *       RocketMQ 投递 VECTORIZE 任务，由消费端调用 {@link #vectorize(Long)} 写入 Redis 向量库；
+ *       RabbitMQ 投递 VECTORIZE 任务，由消费端调用 {@link #vectorize(Long)} 写入 Redis 向量库；
  *       投递失败只记日志，不影响主业务，可人工再次触发。</li>
  *   <li>原文按段落或句末分片，Redis 分片 ID 清单记录所有尝试写入的文档，重新向量化及
  *       删除时完整清理，包含失败任务的部分写入和旧版单文档向量。</li>

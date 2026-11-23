@@ -19,7 +19,6 @@ const form = reactive({
   username: '',
   realName: '',
   phone: '',
-  workerNo: '',
   skillTags: [],
   idCard: '',
   password: '',
@@ -41,14 +40,17 @@ function validateIdCard(rule, value, callback) {
 const rules = {
   username: [
     { required: true, message: '请输入登录名', trigger: 'blur' },
-    { min: 4, max: 20, message: '登录名需为 4-20 位', trigger: 'blur' }
+    { min: 3, max: 20, message: '登录名需为 3-20 位', trigger: 'blur' },
+    { pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/, message: '仅支持字母、数字、下划线或汉字', trigger: 'blur' }
   ],
-  realName: [{ required: true, message: '请填写真实姓名', trigger: 'blur' }],
+  realName: [
+    { required: true, whitespace: true, message: '请填写真实姓名', trigger: 'blur' },
+    { max: 20, message: '姓名不超过 20 个字', trigger: 'blur' }
+  ],
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ],
-  workerNo: [{ required: true, message: '请填写工号', trigger: 'blur' }],
   skillTags: [{ required: true, type: 'array', message: '请选择至少一项技能', trigger: 'change' }],
   idCard: [{ validator: validateIdCard, trigger: 'blur' }],
   password: [
@@ -70,7 +72,6 @@ async function onSubmit() {
       ...form,
       username: form.username.trim(),
       realName: form.realName.trim(),
-      workerNo: form.workerNo.trim(),
       skillTags: form.skillTags.join(',')
     })
     ElMessage.success('注册成功，等待物业管理员审核')
@@ -86,7 +87,7 @@ async function onSubmit() {
 <template>
   <div class="auth-form-view">
     <h2 id="auth-form-title" class="auth-panel__title">加入社区维修服务</h2>
-    <p class="auth-panel__description">工号由物业分配，审核通过后即可接单。</p>
+    <p class="auth-panel__description">工号由系统生成，审核通过后即可接单。</p>
     <p v-if="errorMessage" class="auth-form__error" role="alert">{{ errorMessage }}</p>
     <el-form
       ref="formRef"
@@ -102,9 +103,12 @@ async function onSubmit() {
             v-model="form.username"
             name="username"
             autocomplete="username"
-            placeholder="4-20 位登录名"
+            placeholder="3-20 位登录名"
+            maxlength="20"
+            aria-describedby="worker-username-hint"
             clearable
           />
+          <span id="worker-username-hint" class="auth-form__helper">支持字母、数字、下划线或汉字</span>
         </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input
@@ -112,6 +116,7 @@ async function onSubmit() {
             name="realName"
             autocomplete="name"
             placeholder="请输入真实姓名"
+            maxlength="20"
             clearable
           />
         </el-form-item>
@@ -127,15 +132,16 @@ async function onSubmit() {
             clearable
           />
         </el-form-item>
-        <el-form-item label="工号" prop="workerNo">
+        <el-form-item label="身份证号" prop="idCard">
           <el-input
-            v-model="form.workerNo"
-            name="workerNo"
-            placeholder="请输入物业分配的工号"
+            v-model="form.idCard"
+            name="idCard"
+            placeholder="选填，仅用于资质审核"
+            maxlength="18"
             clearable
           />
         </el-form-item>
-        <el-form-item label="技能标签" prop="skillTags">
+        <el-form-item label="技能标签" prop="skillTags" class="auth-form__span">
           <el-select
             v-model="form.skillTags"
             multiple
@@ -148,15 +154,6 @@ async function onSubmit() {
           >
             <el-option v-for="item in skillOptions" :key="item" :label="item" :value="item" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="身份证号" prop="idCard">
-          <el-input
-            v-model="form.idCard"
-            name="idCard"
-            placeholder="选填，仅用于资质审核"
-            maxlength="18"
-            clearable
-          />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input

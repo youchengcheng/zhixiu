@@ -76,7 +76,7 @@ import java.util.stream.Collectors;
  * <p>职责边界与协作：
  * <ul>
  *   <li>状态机：所有状态变更统一委托 {@link WorkOrderStateMachine}，由它校验流转合法性、完成乐观锁更新、
- *       写入流转日志并投递 RocketMQ 事件；本类只做操作人身份/工单归属校验和本次动作附加字段的赋值。</li>
+ *       写入流转日志并投递 RabbitMQ 事件；本类只做操作人身份/工单归属校验和本次动作附加字段的赋值。</li>
  *   <li>并发控制：本类不直接持有分布式锁。抢单、派单等竞争路径由 AssignService 基于 Redisson 按工单加锁，
  *       状态落库再由状态机的 version 乐观锁兜底，防止并发请求互相覆盖。</li>
  *   <li>SLA：创建工单时由 {@link SlaService} 按「类型 + 紧急度 + 安全隐患 + 影响范围」匹配规则，

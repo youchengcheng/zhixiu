@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.ycc.zhixiucloud.common.constant.MqConstants;
 import com.ycc.zhixiucloud.common.enums.OrderStatusEnum;
 import com.ycc.zhixiucloud.common.enums.SafetyFlagEnum;
+import com.ycc.zhixiucloud.common.exception.BizException;
+import com.ycc.zhixiucloud.common.result.ResultCode;
 import com.ycc.zhixiucloud.dto.WorkOrderStatusDTO;
 import com.ycc.zhixiucloud.entity.SlaConfig;
 import com.ycc.zhixiucloud.entity.WorkOrder;
@@ -23,7 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * SLA 服务实现：规则匹配、超时点计算、RocketMQ 延迟消息投递与超时升级。
+ * SLA 服务实现：规则匹配、超时点计算、RabbitMQ 延迟消息投递与超时升级。
  *
  * <p>匹配优先级：命中维度数量多的规则胜出，同分时按 priority_weight 降序、id 升序。</p>
  *
@@ -32,7 +34,7 @@ import java.util.List;
  *   <li>规则按 categoryId + urgency + safetyFlag + affectScope 四个维度匹配，配置中为 null
  *       的维度表示“不限”，四维全空即全局兜底规则；“具体维度数”越多说明规则越精确。</li>
  *   <li>超时点 = 工单创建时间 + 响应/处理时限；未命中规则时使用配置文件中的默认时限。</li>
- *   <li>超时判定由 RocketMQ 任意秒延迟消息触发，不做定时轮询；消息到期后回调本类的
+ *   <li>超时判定由 RabbitMQ 插件延迟消息触发，不做定时轮询；消费端核对绝对期限后回调本类的
  *       {@link #markResponseBreached(Long)} / {@link #markHandleBreached(Long)}。</li>
  *   <li>标记超时前先看 Redis 状态缓存做快速判定，缓存缺失或落后时回库以数据库为准；
  *       已推进、已终结或已标记过的工单直接返回 false，保证消息重复投递时幂等。</li>
@@ -147,17 +149,26 @@ public class SlaServiceImpl implements SlaService {
      * 投递响应、处理两条 SLA 超时延迟消息。
      *
      * <p>延迟时长由 {@link SlaProducer} 按“超时点 - 当前时间”计算，到期后由
-     * {@code SlaTimeoutConsumer} 回调本类做超时判定。需在 {@link #applyDeadlines} 之后调用，
-     * 否则超时点为空。投递失败时由生产者抛出系统异常。</p>
+     * {@code SlaTimeoutConsumer} 回调本类做超时判定。需在工单插入后于原事务内调用，
+     * 回读数据库秒精度期限；缺少工单、期限或投递失败时抛出系统异常。</p>
      *
      * @param order 已写入超时点的工单
      */
     @Override
     public void scheduleTimeoutTasks(WorkOrder order) {
+        if (order == null || order.getId() == null) {
+            throw BizException.of(ResultCode.SYSTEM_ERROR, "SLA 投递缺少已保存的工单 ID");
+        }
+        // MySQL DATETIME 按秒保存；必须使用同一事务中回读的实际值匹配后续消费任务。
+        WorkOrder persisted = workOrderMapper.selectById(order.getId());
+        if (persisted == null || persisted.getSlaResponseDeadline() == null
+                || persisted.getSlaHandleDeadline() == null) {
+            throw BizException.of(ResultCode.SYSTEM_ERROR, "SLA 投递失败：工单不存在或数据库期限缺失");
+        }
         // 投递响应超时延迟消息
-        slaProducer.sendTimeoutTask(order.getId(), MqConstants.SlaTimeout.RESPONSE, order.getSlaResponseDeadline());
+        slaProducer.sendTimeoutTask(persisted.getId(), MqConstants.SlaTimeout.RESPONSE, persisted.getSlaResponseDeadline());
         // 投递处理超时延迟消息
-        slaProducer.sendTimeoutTask(order.getId(), MqConstants.SlaTimeout.HANDLE, order.getSlaHandleDeadline());
+        slaProducer.sendTimeoutTask(persisted.getId(), MqConstants.SlaTimeout.HANDLE, persisted.getSlaHandleDeadline());
     }
 
     /**

@@ -46,13 +46,13 @@ import java.util.UUID;
  *   <li>按需显式清空受理人字段；</li>
  *   <li>写 work_order_log 流转日志；</li>
  *   <li>结算师傅负载与接单/完工计数；</li>
- *   <li>投递 RocketMQ 领域事件。</li>
+ *   <li>投递 RabbitMQ 领域事件。</li>
  * </ol>
  *
  * <p>并发控制：状态更新走 work_order.version 乐观锁，更新影响行数为 0 说明工单已被其它请求改动，
  * 直接抛出 409 由前端刷新重试，绝不「后写覆盖」。</p>
  *
- * <p>一致性：状态落库、work_order_log 记录、RocketMQ 事件投递在同一事务内完成，
+ * <p>一致性：状态落库、work_order_log 记录、RabbitMQ 事件投递在同一事务内完成，
  * 投递失败会连带回滚业务，避免出现「状态已变但没有事件」的中间态。</p>
  */
 @Slf4j
@@ -80,7 +80,7 @@ public class WorkOrderStateMachine {
     /** 维修师傅表访问：维护 current_load 与接单/完工计数 */
     private final MaintenanceWorkerMapper maintenanceWorkerMapper;
 
-    /** 领域事件生产者：向 RocketMQ 投递工单状态变化事件，驱动通知与缓存更新 */
+    /** 领域事件生产者：向 RabbitMQ 投递工单状态变化事件，驱动通知与缓存更新 */
     private final OrderEventProducer orderEventProducer;
 
     /**

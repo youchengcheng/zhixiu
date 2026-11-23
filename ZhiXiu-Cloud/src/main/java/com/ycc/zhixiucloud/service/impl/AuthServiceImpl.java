@@ -1,5 +1,6 @@
 package com.ycc.zhixiucloud.service.impl;
 
+import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.ycc.zhixiucloud.common.constant.RedisKeys;
 import com.ycc.zhixiucloud.common.enums.AuditStatusEnum;
@@ -80,9 +81,8 @@ public class AuthServiceImpl implements AuthService {
         assertPasswordConsistent(requestVO.getPassword(), requestVO.getConfirmPassword());
         // 预检登录名是否已被占用
         assertUsernameAvailable(requestVO.getUsername());
-        // 预检手机号是否已被占用
-        assertPhoneAvailable(requestVO.getPhone());
-
+        // 预检手机号和身份是否已被占用
+        assertPhoneAndRoleAvailable(requestVO.getPhone(), RoleEnum.OWNER);
         // 业主无需人工审核，账号创建后即可直接登录
         User user = buildUser(requestVO.getUsername(), requestVO.getPassword(), requestVO.getRealName(),
                 requestVO.getPhone(), RoleEnum.OWNER);
@@ -101,7 +101,7 @@ public class AuthServiceImpl implements AuthService {
      * maintenance_worker 两张表。新师傅初始为待审核状态（PENDING/AUDITING），
      * 管理员审核通过后才能登录接单。</p>
      *
-     * @param requestVO 注册请求，额外包含工号、技能标签、身份证号
+     * @param requestVO 注册请求，额外包含技能标签、身份证号，工号由系统生成
      * @return 新用户 ID
      * @throws BizException 参数校验失败、登录名/手机号/工号重复时抛出；事务保证两表写入原子性
      */
@@ -112,14 +112,8 @@ public class AuthServiceImpl implements AuthService {
         assertPasswordConsistent(requestVO.getPassword(), requestVO.getConfirmPassword());
         // 预检登录名是否已被占用
         assertUsernameAvailable(requestVO.getUsername());
-        // 预检手机号是否已被占用
-        assertPhoneAvailable(requestVO.getPhone());
-        // 工号唯一性预检，便于给出友好提示
-        if (maintenanceWorkerMapper.selectCount(Wrappers.<MaintenanceWorker>lambdaQuery()
-                .eq(MaintenanceWorker::getWorkerNo, requestVO.getWorkerNo())) > 0) {
-            // 工号已存在直接拒绝
-            throw BizException.of(ResultCode.CONFLICT, "工号已存在");
-        }
+        // 预检手机号和身份是否已被占用
+        assertPhoneAndRoleAvailable(requestVO.getPhone(), RoleEnum.WORKER);
 
         // 师傅注册同时写入 user 和 maintenance_worker 两张表，由事务保证原子性
         User user = buildUser(requestVO.getUsername(), requestVO.getPassword(), requestVO.getRealName(),
@@ -132,7 +126,7 @@ public class AuthServiceImpl implements AuthService {
         // 关联用户 ID
         worker.setUserId(user.getId());
         // 工号
-        worker.setWorkerNo(requestVO.getWorkerNo());
+        worker.setWorkerNo(generateWorkerNo());
         // 技能标签
         worker.setSkillTags(requestVO.getSkillTags());
         // 身份证号，未填则存 null
@@ -149,15 +143,7 @@ public class AuthServiceImpl implements AuthService {
         worker.setAvgScore(BigDecimal.ZERO);
         // 当前负载初始 0
         worker.setCurrentLoad(0);
-        // 插入时捕获唯一索引冲突
-        try {
-            // 写入师傅档案
-            maintenanceWorkerMapper.insert(worker);
-        // 并发下唯一索引冲突兜底
-        } catch (DuplicateKeyException e) {
-            // 并发提交时预检查可能同时通过，此处依赖唯一索引兜底；事务会一并回滚已插入的 user
-            throw BizException.of(ResultCode.CONFLICT, "工号已存在");
-        }
+        insertWorker(worker);
         // 记录注册结果
         log.info("师傅注册成功：userId={}, workerId={}, workerNo={}",
                 user.getId(), worker.getId(), worker.getWorkerNo());
@@ -573,11 +559,41 @@ public class AuthServiceImpl implements AuthService {
      * @param phone 手机号
      * @throws BizException 手机号已存在时抛出
      */
-    private void assertPhoneAvailable(String phone) {
-        // 手机号作为登录辅助凭证，同样要求全局唯一
-        if (userMapper.selectCount(Wrappers.<User>lambdaQuery().eq(User::getPhone, phone)) > 0) {
+    private void assertPhoneAndRoleAvailable(String phone,RoleEnum roleEnum) {
+        Role role = requireRole(roleEnum);
+        // 手机号加身份双重判断，不唯一抛出异常
+        if(userMapper.selectCount(Wrappers.<User>lambdaQuery()
+                .eq(User::getPhone,phone)
+                .eq(User::getRoleId,role.getId())) > 0) {
             // 抛出手机号已存在
             throw BizException.of(ResultCode.PHONE_EXISTS);
         }
     }
+
+    private void insertWorker(MaintenanceWorker worker) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                maintenanceWorkerMapper.insert(worker);
+                return;
+            } catch (DuplicateKeyException exception) {
+                String errorMessage = exception.getMostSpecificCause().getMessage();
+                if (errorMessage == null || !errorMessage.contains("uk_worker_no")) {
+                    throw exception;
+                }
+                if (attempt == 3) {
+                    throw BizException.of(ResultCode.CONFLICT, "工号生成冲突，请重新提交注册");
+                }
+                worker.setWorkerNo(generateWorkerNo());
+            }
+        }
+    }
+
+    /*
+    * 生成随机工号
+    * */
+    private String generateWorkerNo() {
+        // 生成随机 12 位数字
+        return "WK" + RandomUtil.randomNumbers(12);
+    }
+
 }

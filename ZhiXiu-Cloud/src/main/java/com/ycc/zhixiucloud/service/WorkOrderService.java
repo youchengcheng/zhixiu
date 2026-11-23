@@ -21,7 +21,7 @@ import java.util.List;
  *
  * <p>职责边界：负责业务编排与查询组装，所有状态变更一律经
  * {@link com.ycc.zhixiucloud.statemachine.WorkOrderStateMachine}；状态机负责合法流转校验、
- * 乐观锁更新、流转日志、师傅负载/计数结算与 RocketMQ 事件投递。</p>
+ * 乐观锁更新、流转日志、师傅负载/计数结算与 RabbitMQ 事件投递。</p>
  *
  * <p>主要使用方：业主端、师傅端、管理端工单接口；AI 助手确认草稿时也会调用
  * {@link #createFromAiDraft} 创建工单。</p>

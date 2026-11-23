@@ -1,11 +1,57 @@
 # ============================================================================
-#  生产环境：关闭 SQL 打印与接口文档，密钥全部来自环境变量
+#  生产环境：阿里云 ECS（公网 8.137.154.195 / 内网 172.22.250.30）
+#  启动时必须指定 SPRING_PROFILES_ACTIVE=prod，否则会回落到 dev,local
+#  以下写死的值仅用于毕业设计演示部署，仍可用同名环境变量覆盖
 # ============================================================================
+
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:172.22.250.30}
+
+  # ---------- MySQL ----------
+  datasource:
+    # 服务器 mysql8 容器直接映射到宿主机 3306（与本地 3307 不同）
+    url: jdbc:mysql://${DB_HOST:172.22.250.30}:${DB_PORT:3306}/${DB_NAME:zhixiu}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+
+  # ---------- Redis ----------
+  data:
+    redis:
+      host: ${REDIS_HOST:172.22.250.30}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      # 业务缓存与向量库共用 0 号库，向量库通过 repair-knowledge: 前缀隔离
+      database: ${REDIS_DATABASE:0}
+
 mybatis-plus:
   configuration:
     # 生产关闭 SQL 日志：避免大量磁盘 I/O，同时防止 SQL 参数中的敏感信息落盘
     log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
 
+# ---------- Redisson ----------
+# 与业务 Redis 同实例，使用 1 号库隔离锁数据
+redisson:
+  address: redis://${REDIS_HOST:172.22.250.30}:${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  database: ${REDISSON_DATABASE:1}
+
+# ---------- MinIO ----------
+minio:
+  # 后端容器通过内网地址上传/建桶
+  endpoint: ${MINIO_ENDPOINT:http://172.22.250.30:9000}
+  access-key: ${MINIO_ACCESS_KEY:quanxiaoha}
+  secret-key: ${MINIO_SECRET_KEY:quanxiaoha}
+  bucket: ${MINIO_BUCKET:repair-images}
+  # 前端浏览器访问图片走公网地址，需在安全组放行 9000
+  public-url: ${MINIO_PUBLIC_URL:http://8.137.154.195:9000}
+
+# ---------- JWT ----------
+jwt:
+  # 与 application-local.yml 保持同一密钥，便于本地签发的 Token 在服务器继续可用
+  secret: ${JWT_SECRET:gcktqk9MmngZhUvT/QtcFxDYxfP5W9JjJcYcKM9s3wxEA8cg+wT/1R/ArQeoQKEi}
+
+# ---------- 接口文档 ----------
 # 生产关闭接口文档，避免对外暴露内部接口定义
 springdoc:
   api-docs:
@@ -13,7 +59,11 @@ springdoc:
   swagger-ui:
     enabled: false
 
-# 生产日志级别：业务包只输出 info 及以上，debug 细节不落盘
 logging:
   level:
     com.ycc.zhixiucloud: info
+
+# 管理 API 与 AMQP 复用 RabbitMQ 凭证。
+repair:
+  rabbitmq:
+    management-url: ${RABBITMQ_MANAGEMENT_URL:http://172.22.250.30:15672}

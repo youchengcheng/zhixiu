@@ -1,6 +1,9 @@
 <script setup>
+import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
+import { useAppStore } from '@/stores/app'
+import { useUserStore } from '@/stores/user'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -10,6 +13,19 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const appStore = useAppStore()
+const userStore = useUserStore()
+
+// 后台与师傅端把页面标题交给顶部栏展示，内容区只保留说明文字；业主端仍使用内容区大标题。
+const titleInTopBar = computed(() => userStore.roleCode !== 'OWNER')
+
+watch(
+  () => props.title,
+  (title) => {
+    if (titleInTopBar.value) appStore.pageTitle = title
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -19,7 +35,7 @@ const router = useRouter()
         <el-icon><ArrowLeft /></el-icon>
         <span>返回</span>
       </button>
-      <h1 class="page-header__title">{{ props.title }}</h1>
+      <h1 v-if="!titleInTopBar" class="page-header__title">{{ props.title }}</h1>
       <p v-if="props.description" class="page-header__desc">{{ props.description }}</p>
     </div>
     <div v-if="$slots.default" class="page-header__actions">

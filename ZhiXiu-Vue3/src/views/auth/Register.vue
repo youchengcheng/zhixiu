@@ -27,7 +27,8 @@ function validateConfirm(rule, value, callback) {
 const rules = {
   username: [
     { required: true, message: '请输入登录名', trigger: 'blur' },
-    { min: 4, max: 20, message: '登录名需为 4-20 位', trigger: 'blur' }
+    { min: 3, max: 20, message: '登录名需为 3-20 位', trigger: 'blur' },
+    { pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/, message: '仅支持字母、数字、下划线或汉字', trigger: 'blur' }
   ],
   realName: [{ max: 20, message: '姓名不超过 20 个字', trigger: 'blur' }],
   phone: [
@@ -79,10 +80,13 @@ async function onSubmit() {
             v-model="form.username"
             name="username"
             autocomplete="username"
-            placeholder="设置 4-20 位登录名"
+            placeholder="设置 3-20 位登录名"
+            maxlength="20"
+            aria-describedby="owner-username-hint"
             :prefix-icon="User"
             clearable
           />
+          <span id="owner-username-hint" class="auth-form__helper">支持字母、数字、下划线或汉字</span>
         </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input
@@ -90,6 +94,7 @@ async function onSubmit() {
             name="realName"
             autocomplete="name"
             placeholder="选填，输入真实姓名"
+            maxlength="20"
             :prefix-icon="Postcard"
             clearable
           />

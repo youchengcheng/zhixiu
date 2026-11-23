@@ -16,7 +16,7 @@ import lombok.Data;
 public class OwnerRegisterRequestVO {
 
     @NotBlank(message = "登录名不能为空")
-    @Pattern(regexp = "^[a-zA-Z0-9_]{4,20}$", message = "登录名需 4-20 位字母、数字或下划线")
+    @Pattern(regexp = "^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$", message = "登录名需 3-20 位字母、数字、下划线或汉字")
     @Schema(description = "登录名", example = "owner01")
     private String username;
 
@@ -30,7 +30,7 @@ public class OwnerRegisterRequestVO {
     @Schema(description = "确认密码")
     private String confirmPassword;
 
-    @Size(max = 50, message = "真实姓名不能超过 50 字")
+    @Size(max = 20, message = "真实姓名不能超过 20 字")
     @Schema(description = "真实姓名")
     private String realName;
 

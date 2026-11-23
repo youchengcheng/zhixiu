@@ -16,7 +16,7 @@ import lombok.Data;
 public class WorkerRegisterRequestVO {
 
     @NotBlank(message = "登录名不能为空")
-    @Pattern(regexp = "^[a-zA-Z0-9_]{4,20}$", message = "登录名需 4-20 位字母、数字或下划线")
+    @Pattern(regexp = "^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$", message = "登录名需 3-20 位字母、数字、下划线或汉字")
     @Schema(description = "登录名", example = "worker01")
     private String username;
 
@@ -31,7 +31,7 @@ public class WorkerRegisterRequestVO {
     private String confirmPassword;
 
     @NotBlank(message = "真实姓名不能为空")
-    @Size(max = 50, message = "真实姓名不能超过 50 字")
+    @Size(max = 20, message = "真实姓名不能超过 20 字")
     @Schema(description = "真实姓名")
     private String realName;
 
@@ -39,11 +39,6 @@ public class WorkerRegisterRequestVO {
     @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
     @Schema(description = "手机号")
     private String phone;
-
-    @NotBlank(message = "工号不能为空")
-    @Size(max = 50, message = "工号不能超过 50 位")
-    @Schema(description = "工号（唯一）")
-    private String workerNo;
 
     @NotBlank(message = "技能标签不能为空")
     @Size(max = 255, message = "技能标签不能超过 255 位")
