@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { iconOf } from '@/utils/menu-icons'
+import { useSelectionMotion } from '@/composables/useSelectionMotion'
 
 const props = defineProps({
   /** [{ name: '分组名', items: [{ title, icon, path }] }]，name 为空表示不分组 */
@@ -14,6 +15,9 @@ const emit = defineEmits(['navigate'])
 const route = useRoute()
 
 const activePath = computed(() => route.meta?.activeMenu || route.path)
+const navRef = ref(null)
+const selectionRef = ref(null)
+useSelectionMotion(navRef, selectionRef, () => `${activePath.value}:${props.collapsed}`)
 
 function isActive(path) {
   return activePath.value === path
@@ -21,7 +25,8 @@ function isActive(path) {
 </script>
 
 <template>
-  <nav class="side-nav" aria-label="主导航">
+  <nav ref="navRef" class="side-nav" aria-label="主导航">
+    <span ref="selectionRef" class="ios-selection ios-selection--side" aria-hidden="true" />
     <div v-for="(group, groupIndex) in props.menus" :key="group.name || groupIndex" class="nav-group">
       <p v-if="group.name && !props.collapsed" class="nav-group__title">{{ group.name }}</p>
       <div v-else-if="group.name" class="nav-group__rule" />

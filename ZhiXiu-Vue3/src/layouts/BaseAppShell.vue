@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { roleRoutes } from '@/router/routes'
@@ -8,6 +8,7 @@ import { useAppStore } from '@/stores/app'
 import SideNav from './components/SideNav.vue'
 import TopBar from './components/TopBar.vue'
 import BrandLogo from '@/components/BrandLogo.vue'
+import { useSelectionMotion } from '@/composables/useSelectionMotion'
 
 // 业主使用顶部服务导航，师傅与管理员使用可折叠侧栏；手机共用导航抽屉。
 // 菜单完全由路由 meta 推导（hidden 不出现在菜单，group 决定分组）
@@ -23,6 +24,31 @@ const activePath = computed(() => route.meta?.activeMenu || route.path)
 const appStore = useAppStore()
 const userStore = useUserStore()
 const isNarrow = ref(false)
+const serviceNavRef = ref(null)
+const serviceSelectionRef = ref(null)
+const contentRef = ref(null)
+const pageTransition = ref('ios-page-switch')
+const scrollPositions = new Map()
+let previousPosition = window.history.state?.position ?? 0
+let previousDetail = Boolean(route.meta?.hidden && route.meta?.activeMenu)
+let restoreScroll = 0
+
+useSelectionMotion(serviceNavRef, serviceSelectionRef, activePath)
+
+watch(() => route.fullPath, (nextPath, previousPath) => {
+  scrollPositions.set(previousPath, contentRef.value?.scrollTop || 0)
+  const position = window.history.state?.position ?? previousPosition
+  const detail = Boolean(route.meta?.hidden && route.meta?.activeMenu)
+  const back = position < previousPosition || (previousDetail && !detail)
+  pageTransition.value = back ? 'ios-page-back' : detail ? 'ios-page-forward' : 'ios-page-switch'
+  restoreScroll = back ? scrollPositions.get(nextPath) || 0 : 0
+  previousPosition = position
+  previousDetail = detail
+}, { flush: 'sync' })
+
+function onPageEnter() {
+  if (contentRef.value) contentRef.value.scrollTop = restoreScroll
+}
 
 function syncViewport() {
   isNarrow.value = window.innerWidth < 1024
@@ -114,7 +140,8 @@ function onToggle() {
           </router-link>
         </template>
         <template v-if="isOwner && !isNarrow" #navigation>
-          <nav class="service-nav" aria-label="主导航">
+          <nav ref="serviceNavRef" class="service-nav" aria-label="主导航">
+            <span ref="serviceSelectionRef" class="ios-selection" aria-hidden="true" />
             <router-link v-for="item in menus[0]?.items || []" :key="item.path" class="service-nav__item" :class="{ 'is-active': activePath === item.path }" :to="item.path" :aria-current="activePath === item.path ? 'page' : undefined">{{ item.title }}</router-link>
             <el-dropdown trigger="click" :hide-on-click="true" @command="router.push">
               <button class="service-nav__more" :class="{ 'is-active': menus[1]?.items.some(item => item.path === activePath) }" type="button">社区与账户 <el-icon><ArrowDown /></el-icon></button>
@@ -126,11 +153,13 @@ function onToggle() {
         </template>
       </TopBar>
       <main
+        ref="contentRef"
+        v-ios-reveal
         class="app-shell__content"
         :class="{ 'app-shell__content--fixed': route.name === 'OwnerAiAssistant' }"
       >
         <router-view v-slot="{ Component }">
-          <transition name="route-fade" mode="out-in">
+          <transition :name="pageTransition" mode="out-in" @enter="onPageEnter">
             <keep-alive include="OwnerAiAssistant">
               <component :is="Component" />
             </keep-alive>

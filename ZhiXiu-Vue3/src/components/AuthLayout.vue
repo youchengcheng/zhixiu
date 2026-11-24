@@ -44,7 +44,7 @@ const content = computed(() => {
         让社区生活更安心
       </span>
     </header>
-    <main class="auth-page__body">
+    <main v-ios-reveal class="auth-page__body">
       <section class="auth-story" aria-labelledby="auth-story-title">
         <div class="auth-story__copy">
           <span class="auth-story__label">连接业主、师傅与物业</span>

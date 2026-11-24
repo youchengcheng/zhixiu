@@ -7,6 +7,7 @@ import { USE_MOCK } from './utils/env'
 import { setHttpAdapter, setUnauthorizedHandler } from './utils/request'
 import { permission } from './utils/permission'
 import { useUserStore } from './stores/user'
+import { installPressFeedback, iosReveal } from './utils/ios-motion'
 
 // 自托管拉丁与数字字体，零外网依赖
 import '@fontsource-variable/geist'
@@ -31,6 +32,8 @@ async function bootstrap() {
   app.use(router)
   app.use(ElLoading)
   app.directive('permission', permission)
+  app.directive('ios-reveal', iosReveal)
+  app.onUnmount(installPressFeedback(document))
 
   // 401 统一出口：清登录态并回到登录页，保留回跳地址
   setUnauthorizedHandler(() => {

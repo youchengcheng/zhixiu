@@ -1,0 +1,150 @@
+/* 在原始设计上增加 iOS 的运动层，不改变原有页面布局与圆角尺度。 */
+:root {
+  --motion-spring: cubic-bezier(0.2, 1.12, 0.3, 1);
+  --motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 导航共享一个背景，选中状态不是在两个项目之间直接闪切。 */
+.side-nav,
+.service-nav { position: relative; isolation: isolate; }
+.side-nav .nav-group,
+.service-nav > .service-nav__item,
+.service-nav > .el-dropdown { position: relative; z-index: 1; }
+
+.ios-selection {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  display: block;
+  opacity: 0;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-card) 90%, transparent);
+  box-shadow: var(--shadow-xs), inset 0 1px 0 color-mix(in srgb, var(--color-bg-card) 70%, transparent);
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+.ios-selection--side::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 28%;
+  bottom: 28%;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+.side-nav.has-ios-selection .nav-item.is-active,
+.service-nav.has-ios-selection .is-active { background: transparent; box-shadow: none; }
+
+.app-shell__side { transition: width 360ms var(--motion-enter); }
+.side-nav .nav-item { transition: color 180ms ease, background-color 180ms ease; }
+.side-nav .nav-item__icon { transition: transform 280ms var(--motion-spring); }
+.side-nav .nav-item:hover .nav-item__icon { transform: translateX(2px); }
+
+/* 主页面轻柔交接；详情推进和返回分别使用左右方向。 */
+.ios-page-switch-enter-active,
+.ios-page-forward-enter-active,
+.ios-page-back-enter-active {
+  transition: opacity 280ms ease, transform 360ms var(--motion-enter);
+  transform-origin: 50% 0;
+}
+
+.ios-page-switch-leave-active,
+.ios-page-forward-leave-active,
+.ios-page-back-leave-active {
+  transition: opacity 100ms ease, transform 140ms ease;
+  pointer-events: none;
+}
+
+.ios-page-switch-enter-from { opacity: 0; transform: translateY(8px) scale(0.995); }
+.ios-page-switch-leave-to { opacity: 0; transform: scale(0.998); }
+.ios-page-forward-enter-from { opacity: 0; transform: translateX(28px); }
+.ios-page-forward-leave-to { opacity: 0; transform: translateX(-10px); }
+.ios-page-back-enter-from { opacity: 0; transform: translateX(-20px); }
+.ios-page-back-leave-to { opacity: 0; transform: translateX(12px); }
+
+/* 实底内容保持清晰，浮层出现时用背景虚化建立前后层次。 */
+html .el-overlay {
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+html .dialog-fade-enter-active,
+html .dialog-fade-leave-active { animation-duration: 180ms; }
+html .dialog-fade-enter-active .el-overlay-dialog,
+html .dialog-fade-leave-active .el-overlay-dialog { animation: none; }
+html .dialog-fade-enter-active .el-dialog { animation: ios-sheet-in 420ms var(--motion-enter) both; transform-origin: 50% 65%; }
+html .dialog-fade-leave-active .el-dialog { animation: ios-sheet-out 180ms ease both; }
+
+html .el-drawer {
+  transition: transform 420ms var(--motion-spring);
+  box-shadow: var(--shadow-lg);
+}
+html .el-drawer-fade-enter-active,
+html .el-drawer-fade-leave-active { transition: opacity 240ms ease; }
+
+html .msgbox-fade-enter-active .el-message-box { animation: ios-sheet-in 360ms var(--motion-enter) both; }
+html .msgbox-fade-leave-active .el-message-box { animation: ios-sheet-out 160ms ease both; }
+
+@keyframes ios-sheet-in {
+  0% { opacity: 0; transform: translateY(24px) scale(0.94); }
+  75% { opacity: 1; transform: translateY(-1px) scale(1.008); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ios-sheet-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+/* 下拉菜单从触发控件附近展开，开关滑块有柔和的减速与回弹。 */
+html .el-zoom-in-top-enter-active,
+html .el-zoom-in-top-leave-active { transition: opacity 180ms ease, transform 280ms var(--motion-spring); }
+html .el-zoom-in-top-enter-from,
+html .el-zoom-in-top-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }
+html .el-switch__action { transition: left 280ms var(--motion-spring), transform 280ms var(--motion-spring); }
+
+/* 分段选择保留原本的小圆角，通过实底滑块和阴影区分选项。 */
+html .el-radio-group:has(> .el-radio-button) {
+  padding: 3px;
+  background: var(--color-bg-sunken);
+  border-radius: var(--radius-md);
+}
+html .el-radio-button { --el-radio-button-checked-bg-color: var(--color-bg-card); --el-radio-button-checked-text-color: var(--color-text-1); --el-radio-button-checked-border-color: transparent; }
+html .el-radio-button .el-radio-button__inner { border: 0; border-radius: var(--radius-sm); background: transparent; box-shadow: none; }
+html .el-radio-button:first-child .el-radio-button__inner,
+html .el-radio-button:last-child .el-radio-button__inner { border: 0; border-radius: var(--radius-sm); }
+html .el-radio-button.is-active .el-radio-button__inner { color: var(--color-text-1); background: var(--color-bg-card); box-shadow: var(--shadow-sm); }
+
+@media (prefers-reduced-transparency: reduce) {
+  html .el-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ios-selection { background: var(--color-bg-card); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-page-switch-enter-active,
+  .ios-page-forward-enter-active,
+  .ios-page-back-enter-active,
+  .ios-page-switch-leave-active,
+  .ios-page-forward-leave-active,
+  .ios-page-back-leave-active { transition-duration: 1ms; }
+  .ios-page-switch-enter-from,
+  .ios-page-forward-enter-from,
+  .ios-page-back-enter-from,
+  .ios-page-switch-leave-to,
+  .ios-page-forward-leave-to,
+  .ios-page-back-leave-to { transform: none; }
+  .app-shell__side, .side-nav .nav-item__icon { transition: none; }
+  .side-nav .nav-item:hover .nav-item__icon { transform: none; }
+  html .el-drawer, html .el-switch__action,
+  html .el-drawer-fade-enter-active, html .el-drawer-fade-leave-active,
+  html .el-zoom-in-top-enter-active, html .el-zoom-in-top-leave-active { transition-duration: 1ms; }
+  html .dialog-fade-enter-active, html .dialog-fade-leave-active { animation-duration: 1ms; }
+  html .dialog-fade-enter-active .el-dialog,
+  html .dialog-fade-leave-active .el-dialog,
+  html .msgbox-fade-enter-active .el-message-box,
+  html .msgbox-fade-leave-active .el-message-box { animation-duration: 1ms; }
+}
