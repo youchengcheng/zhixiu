@@ -11,7 +11,8 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.ai.retry.RetryUtils;
+import org.springframework.ai.retry.TransientAiException;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,9 +20,18 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
+import org.springframework.http.client.ReactorClientHttpRequestFactory;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisPooled;
+
+import java.time.Duration;
 
 /**
  * Spring AI 装配：ChatClient、EmbeddingModel、RedisVectorStore（维修知识向量库）。
@@ -99,16 +109,33 @@ public class SpringAiConfig {
      * <p>只依赖 baseUrl 与 apiKey，因此可对接阿里云百炼、OpenAI 或任意兼容
      * Chat Completions / Embeddings 协议的服务；切换供应商只需改配置。</p>
      *
+     * @param aiHttpClient 具有空闲连接回收策略的模型 HTTP 客户端
      * @return OpenAI 兼容客户端
      */
     @Bean
-    public OpenAiApi openAiApi() {
+    public OpenAiApi openAiApi(HttpClient aiHttpClient) {
+        ReactorClientHttpRequestFactory requestFactory = new ReactorClientHttpRequestFactory(aiHttpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(60));
         // 按兼容模式地址与 API Key 构建客户端
         return OpenAiApi.builder()
                 // 指定 OpenAI 兼容接口地址
                 .baseUrl(baseUrl)
                 // 设置大模型 API Key
                 .apiKey(apiKey)
+                .restClientBuilder(RestClient.builder().requestFactory(requestFactory))
+                .webClientBuilder(WebClient.builder()
+                        .clientConnector(new ReactorClientHttpConnector(aiHttpClient)))
+                .build();
+    }
+
+    /** 非流式模型调用使用有界重试，避免长退避占满 SSE 的等待窗口。 */
+    @Bean
+    public RetryTemplate aiModelRetryTemplate() {
+        return RetryTemplate.builder()
+                .maxAttempts(2)
+                .fixedBackoff(500)
+                .retryOn(TransientAiException.class)
+                .retryOn(ResourceAccessException.class)
                 .build();
     }
 
@@ -122,7 +149,7 @@ public class SpringAiConfig {
      * @return 对话模型
      */
     @Bean
-    public ChatModel chatModel(OpenAiApi openAiApi) {
+    public ChatModel chatModel(OpenAiApi openAiApi, RetryTemplate aiModelRetryTemplate) {
         // 默认对话选项：指定模型名与温度
         OpenAiChatOptions options = OpenAiChatOptions.builder()
                 // 指定对话模型名
@@ -130,7 +157,7 @@ public class SpringAiConfig {
                 // 温度偏低，减少幻觉
                 .temperature(0.3)
                 .build();
-        // 手工装配 ChatModel，注册默认重试与工具调用管理器（@Tool 支持）
+        // 手工装配 ChatModel，注册有界重试与工具调用管理器（@Tool 支持）
         return OpenAiChatModel.builder()
                 // 复用上方的兼容客户端
                 .openAiApi(openAiApi)
@@ -138,8 +165,8 @@ public class SpringAiConfig {
                 .defaultOptions(options)
                 // 注册工具调用管理器，启用 @Tool 方法调用
                 .toolCallingManager(ToolCallingManager.builder().build())
-                // 使用默认重试模板
-                .retryTemplate(RetryUtils.DEFAULT_RETRY_TEMPLATE)
+                // 非流式调用最多重试一次，避免长退避占满 SSE 超时窗口
+                .retryTemplate(aiModelRetryTemplate)
                 .build();
     }
 
@@ -153,7 +180,7 @@ public class SpringAiConfig {
      * @return 向量化模型
      */
     @Bean
-    public EmbeddingModel embeddingModel(OpenAiApi openAiApi) {
+    public EmbeddingModel embeddingModel(OpenAiApi openAiApi, RetryTemplate aiModelRetryTemplate) {
         // 向量化选项：指定模型名与维度（维度须与索引一致）
         OpenAiEmbeddingOptions options = OpenAiEmbeddingOptions.builder()
                 // 指定向量化模型名
@@ -162,7 +189,7 @@ public class SpringAiConfig {
                 .dimensions(vectorDimensions)
                 .build();
         // 手工装配向量化模型
-        return new OpenAiEmbeddingModel(openAiApi, MetadataMode.EMBED, options, RetryUtils.DEFAULT_RETRY_TEMPLATE);
+        return new OpenAiEmbeddingModel(openAiApi, MetadataMode.EMBED, options, aiModelRetryTemplate);
     }
 
     /**

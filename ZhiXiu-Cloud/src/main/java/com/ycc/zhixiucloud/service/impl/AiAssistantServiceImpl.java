@@ -1,6 +1,7 @@
 package com.ycc.zhixiucloud.service.impl;
 
 import cn.hutool.json.JSONUtil;
+import com.ycc.zhixiucloud.ai.AiStreamRetry;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ycc.zhixiucloud.common.constant.RedisKeys;
@@ -47,6 +48,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -221,6 +223,8 @@ public class AiAssistantServiceImpl implements AiAssistantService {
 
     /** 对话客户端可能未装配（AI 未启用） */
     private final ObjectProvider<ChatClient> chatClientProvider;
+
+    private final AiStreamRetry aiStreamRetry;
 
     /** 向量库可能未装配（AI 未启用） */
     private final ObjectProvider<VectorStore> vectorStoreProvider;
@@ -536,6 +540,12 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                     sessionId, requestVO.getAction(), e.getCode());
             completeWithBusinessError(emitter, e.getCode(), e.getMessage());
         } catch (Exception e) {
+            if (e instanceof IllegalStateException && e.getMessage() != null
+                    && e.getMessage().startsWith("SSE 事件推送失败")
+                    && DisconnectedClientHelper.isClientDisconnectedException(e)) {
+                log.debug("AI SSE 客户端已断开：sessionId={}, action={}", sessionId, requestVO.getAction());
+                return;
+            }
             log.error("AI 流式会话异常：sessionId={}, action={}", sessionId, requestVO.getAction(), e);
             completeWithBusinessError(emitter, ResultCode.AI_INVOKE_FAILED.getCode(),
                     ResultCode.AI_INVOKE_FAILED.getMessage());
@@ -569,11 +579,14 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                 system += "\n用户已明确反馈问题未解决。结合前文换一种排查方向，不把此前建议视为用户已尝试；"
                         + "先给可执行的其他方案，再追问一到两个能区分故障原因的关键问题。";
             }
-            chatClient.prompt().system(system).user(buildUserPrompt(sessionId, content))
-                    .stream().content().toIterable().forEach(delta -> {
+            String requestSystem = system;
+            String requestUser = buildUserPrompt(sessionId, content);
+            aiStreamRetry.consume(
+                    () -> chatClient.prompt().system(requestSystem).user(requestUser).stream().content(),
+                    delta -> {
                         answer.append(delta);
                         sendEvent(emitter, "message", Map.of("delta", delta));
-                    });
+                    }, sessionId);
         }
         if (!StringUtils.hasText(answer)) {
             throw BizException.of(ResultCode.AI_INVOKE_FAILED);

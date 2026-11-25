@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 import java.util.stream.Collectors;
 
@@ -175,6 +176,12 @@ public class GlobalExceptionHandler {
         log.warn("无权限访问：{}", ex.getMessage());
         // 返回无权限响应（HTTP 403）
         return Result.fail(ResultCode.FORBIDDEN);
+    }
+
+    /** 客户端断开后不再写 JSON，避免对 SSE 响应触发第二次转换异常。 */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleDisconnectedClient(AsyncRequestNotUsableException ex, HttpServletRequest request) {
+        log.debug("异步客户端已断开：{} {}", request.getMethod(), request.getRequestURI());
     }
 
     /**
