@@ -196,7 +196,7 @@ repair:
     # 兼容模式地址（默认阿里云百炼），生产可用 DASHSCOPE_BASE_URL 覆盖
     base-url: ${DASHSCOPE_BASE_URL:https://ws-ms4u3sopffjgsuxk.cn-beijing.maas.aliyuncs.com/compatible-mode}
     # API Key：优先读环境变量 DASHSCOPE_API_KEY；此处默认值仅供本地联调，生产务必覆盖，禁止提交真实密钥
-    api-key: ${DASHSCOPE_API_KEY:sk-ws-H.ERELPMR.4Uo0.MEQCIDtZQGzqZQC2rPUnTOl1dWjQWo1j02vkytQ-ZREHlWhFAiABeLcpIvG4vxjzV3-_oEBppnR6hRDOBDAJD7w4Hk3Kzw}
+    api-key: ${DASHSCOPE_API_KEY:}
     # 对话模型名（流式问答）
     chat-model: ${DASHSCOPE_CHAT_MODEL:qwen3.8-flash}
     # 向量化模型名（知识库入库与检索共用）
