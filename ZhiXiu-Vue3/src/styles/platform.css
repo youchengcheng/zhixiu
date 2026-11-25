@@ -276,9 +276,36 @@
 }
 
 @media (max-width: 767px) {
+  /* 手机保留阅读留白，并为页面和传送到 body 的弹层统一触控尺寸。 */
+  html .app-shell .layout-page { padding-top: 24px; padding-bottom: 40px; gap: 28px; }
+  html :is(.app-shell, .el-dialog, .el-drawer) { --el-component-size: 44px; --el-component-size-small: 44px; --el-component-size-large: 48px; --el-input-height: 44px; }
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-input__wrapper,
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-select__wrapper,
+  html .app-shell .el-input--small .el-input__wrapper,
+  html .app-shell .el-select--small .el-select__wrapper { min-height: 44px; }
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-input__inner,
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-select__wrapper,
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-textarea__inner,
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-date-editor .el-range-input { font-size: 16px; }
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-textarea__inner { padding: 12px; line-height: 1.7; }
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-button { min-height: 44px; min-width: 44px; }
+  html .el-message-box .el-button { min-height: 44px; min-width: 44px; }
+  html .el-drawer__close-btn { min-height: 44px; min-width: 44px; }
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-radio,
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-checkbox,
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-switch { min-height: 44px; }
+  html :is(.app-shell, .el-dialog, .el-drawer) .el-radio-button__inner { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  html .el-select-dropdown__item { height: 44px; line-height: 44px; font-size: 16px; }
+  html .el-cascader-node { min-height: 44px; font-size: 16px; }
+  html .app-shell .el-form-item { margin-bottom: 28px; }
+  html .el-dialog { padding: 20px; }
+  html :is(.el-dialog, .el-drawer) .el-form-item { margin-bottom: 28px; }
+  html :is(.el-dialog__footer, .el-drawer__footer) .el-button { margin-left: 0; }
+  html :is(.el-dialog__footer, .el-drawer__footer) { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+  html .app-shell .page-header__back { min-height: 44px; }
   .app-shell.app-shell--owner { --owner-page-gutter: 16px; }
   .app-shell .worker-pending .pending-card__meta { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .app-shell.app-shell--owner .layout-page { padding: 16px 16px 32px; gap: 24px; }
+  .app-shell.app-shell--owner .layout-page { padding: 24px 16px 40px; gap: 28px; }
   .app-shell .owner-home .home-welcome { grid-template-columns: minmax(0, 1fr); min-height: auto; }
   .app-shell .home-welcome__copy { padding: 26px 24px; }
   .app-shell .home-welcome__copy h2 { font-size: 26px; }
@@ -301,9 +328,11 @@
   .app-shell .admin-dashboard .kpi-panel .stat-card__value { font-size: 28px; }
   .app-shell .admin-dashboard .dashboard-efficiency { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-shell .dashboard-efficiency .stat-card:nth-child(odd) { border-left: 0; }
-  .app-shell .page-filter { padding: 16px; }
-  .app-shell .el-table td.el-table__cell { padding-block: 14px; }
-  .app-shell .repair-layout .section-card__body { padding: 20px 16px; }
+  html .app-shell .page-filter { padding: 20px; gap: 16px; }
+  html .app-shell .page-filter > :is(.el-input, .el-select, .el-cascader, .el-date-editor) { flex: 1 1 100%; min-width: 0; }
+  html .app-shell .page-filter .el-button { margin-left: 0; }
+  .app-shell .el-table td.el-table__cell { padding-block: 18px; }
+  .app-shell .repair-layout .section-card__body { padding: 24px 20px; }
   .app-shell .repair-layout .order-form > .grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .app-shell .ai-page .ai-layout, .app-shell .ai-page .ai-layout.has-draft { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .app-shell .ai-page .ai-draft { grid-column: auto; }
@@ -327,4 +356,52 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell .el-button:not(.is-disabled):active { transform: none; }
+}
+
+
+/* 普通弹窗以视口为中心，长内容仅在正文区域滚动。 */
+html .el-overlay-dialog,
+html .is-message-box .el-overlay-message-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+html .el-overlay-dialog .el-dialog,
+html .el-message-box {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+html .el-overlay-dialog .el-dialog {
+  margin: 0;
+}
+
+html .el-dialog__header,
+html .el-dialog__footer,
+html .el-message-box__header,
+html .el-message-box__btns {
+  flex-shrink: 0;
+}
+
+html .el-dialog__body,
+html .el-message-box__content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+html .is-message-box .el-overlay-message-box::after {
+  display: none;
+}
+
+html .el-overlay-dialog .el-dialog.is-fullscreen {
+  max-width: 100%;
+  max-height: 100dvh;
+  height: 100dvh;
+  border-radius: 0;
 }

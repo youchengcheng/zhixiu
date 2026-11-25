@@ -235,9 +235,22 @@ async function onCommand(command) {
   color: var(--color-text-3);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .top-bar {
     padding: 0 var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .top-bar__icon-button {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .top-bar__user {
+    flex: 0 0 auto;
+    min-width: 44px;
+    padding-inline: 6px;
   }
 
   .top-bar__role,

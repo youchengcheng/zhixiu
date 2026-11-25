@@ -8,6 +8,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import Pagination from '@/components/Pagination.vue'
 import AppSkeleton from '@/components/AppSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import MarkdownView from '@/components/MarkdownView.vue'
 import {
   createKnowledge,
   deleteKnowledge,
@@ -30,6 +31,24 @@ const failed = ref(false)
 const acting = ref('')
 const categoryOptions = ref([])
 
+// 正文查看：列表展示完整正文，检索展示命中的分片
+const previewVisible = ref(false)
+const preview = reactive({ title: '', content: '', categoryName: '', tags: '' })
+
+function openPreview(item, searchResult = false) {
+  const title = item.title || '知识正文'
+  const metadata = searchResult
+    ? rows.value.find((row) => String(row.id) === String(item.id))
+    : item
+  Object.assign(preview, {
+    title: searchResult ? `${title}（检索片段）` : title,
+    content: item.content || '',
+    categoryName: metadata ? metadata.categoryName || '未关联类型' : '未提供',
+    tags: metadata ? metadata.tags || '无标签' : '未提供'
+  })
+  previewVisible.value = true
+}
+
 // 新增 / 编辑
 const dialogVisible = ref(false)
 const editingId = ref('')
@@ -39,7 +58,6 @@ const uploadRef = ref(null)
 const fileList = ref([])
 const fileError = ref('')
 const uploadProgress = ref(0)
-const existingContent = ref('')
 const form = reactive({ title: '', categoryId: '', file: null, tags: '' })
 
 const rules = {
@@ -128,7 +146,6 @@ function onSizeChange(value) {
 
 function openCreate() {
   editingId.value = ''
-  existingContent.value = ''
   Object.assign(form, { title: '', categoryId: '', file: null, tags: '' })
   resetUpload()
   dialogVisible.value = true
@@ -143,7 +160,6 @@ function openEdit(item) {
     file: null,
     tags: item.tags || ''
   })
-  existingContent.value = item.content || ''
   resetUpload()
   dialogVisible.value = true
   nextTick(() => formRef.value?.clearValidate())
@@ -338,15 +354,20 @@ function clearSearch() {
         <el-table :data="rows" style="width: 100%">
           <el-table-column label="知识条目" min-width="340">
             <template #default="{ row }">
-              <div class="record-cell">
-                <button class="aknow-title record-cell__primary" type="button" @click="openEdit(row)">
+              <button
+                class="aknow-entry record-cell"
+                type="button"
+                :aria-label="`查看「${row.title}」正文`"
+                @click="openPreview(row)"
+              >
+                <span class="aknow-title record-cell__primary">
                   {{ row.title }}
-                </button>
-                <div class="record-cell__meta">
+                </span>
+                <span class="record-cell__meta">
                   <span>{{ row.categoryName || '未关联类型' }}</span>
                   <span>{{ row.tags || '无标签' }}</span>
-                </div>
-              </div>
+                </span>
+              </button>
             </template>
           </el-table-column>
 
@@ -430,19 +451,42 @@ function clearSearch() {
       />
 
       <ul v-else-if="searchResults.length" class="aknow-result">
-        <li v-for="(item, index) in searchResults" :key="`${item.id}-${index}`" class="aknow-result__item">
-          <div class="aknow-result__head">
-            <span class="aknow-result__title">{{ item.title }}</span>
-            <span class="aknow-result__score text-mono">相似度 {{ item.score }}</span>
-          </div>
-          <p class="aknow-result__meta">
-            {{ item.categoryName || '未关联类型' }}
-            <span v-if="item.tags">· {{ item.tags }}</span>
-          </p>
-          <p class="aknow-result__content clamp-2">{{ item.content }}</p>
+        <li v-for="(item, index) in searchResults" :key="`${item.id}-${index}`">
+          <button
+            class="aknow-result__item"
+            type="button"
+            :aria-label="`查看「${item.title}」检索片段`"
+            @click="openPreview(item, true)"
+          >
+            <span class="aknow-result__head">
+              <span class="aknow-result__title">{{ item.title }}</span>
+              <span class="aknow-result__score text-mono">相似度 {{ item.score }}</span>
+            </span>
+            <span v-if="item.categoryName || item.tags" class="aknow-result__meta">
+              {{ item.categoryName }}
+              <span v-if="item.categoryName && item.tags">·</span>
+              {{ item.tags }}
+            </span>
+            <span class="aknow-result__content clamp-2">{{ item.content }}</span>
+          </button>
         </li>
       </ul>
     </SectionCard>
+
+    <!-- 正文查看弹窗 -->
+    <el-dialog v-model="previewVisible" :title="preview.title" width="800px" destroy-on-close>
+      <template #header="{ titleId, titleClass }">
+        <span :id="titleId" :class="titleClass">{{ preview.title }}</span>
+        <dl class="aknow-preview-meta">
+          <dt>关联类型</dt>
+          <dd>{{ preview.categoryName }}</dd>
+          <dt>标签</dt>
+          <dd>{{ preview.tags }}</dd>
+        </dl>
+      </template>
+      <MarkdownView v-if="preview.content.trim()" class="aknow-preview" :content="preview.content" />
+      <EmptyState v-else title="暂无正文" size="compact" />
+    </el-dialog>
 
     <!-- 新增 / 编辑弹窗 -->
     <el-dialog
@@ -499,16 +543,6 @@ function clearSearch() {
               <span>{{ uploadProgress === 100 ? '上传完成，正在解析文件…' : '正在上传文件…' }}</span>
             </div>
           </div>
-        </el-form-item>
-
-        <el-form-item v-if="editingId && existingContent" label="当前正文（只读）">
-          <el-input
-            :model-value="existingContent"
-            type="textarea"
-            :rows="5"
-            readonly
-            aria-label="当前知识正文，只读"
-          />
         </el-form-item>
       </el-form>
 
@@ -572,24 +606,30 @@ function clearSearch() {
   width: 240px;
 }
 
-.aknow-title {
+.aknow-entry {
+  width: 100%;
   padding: 0;
   border: none;
   background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aknow-title {
   font-size: var(--fs-body);
   font-weight: var(--fw-medium);
   color: var(--color-text-1);
-  text-align: left;
-  cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.aknow-title:hover,
-.aknow-title:focus-visible {
+.aknow-entry:hover .aknow-title,
+.aknow-entry:focus-visible .aknow-title {
   color: var(--color-primary);
 }
 
-.aknow-title:focus-visible {
+.aknow-entry:focus-visible,
+.aknow-result__item:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
   border-radius: var(--radius-xs);
@@ -622,10 +662,20 @@ function clearSearch() {
 }
 
 .aknow-result__item {
+  display: block;
+  width: 100%;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg-sunken);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.aknow-result__item:hover {
+  border-color: var(--color-primary);
 }
 
 .aknow-result__head {
@@ -633,6 +683,7 @@ function clearSearch() {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .aknow-result__title {
@@ -652,6 +703,7 @@ function clearSearch() {
 }
 
 .aknow-result__meta {
+  display: block;
   margin-top: 2px;
   font-size: var(--fs-xs);
   color: var(--color-text-3);
@@ -662,5 +714,32 @@ function clearSearch() {
   font-size: var(--fs-sm);
   color: var(--color-text-2);
   line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+}
+
+.aknow-preview-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
+  max-height: 25dvh;
+  overflow-y: auto;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-base);
+}
+
+.aknow-preview-meta dt {
+  color: var(--color-text-3);
+}
+
+.aknow-preview-meta dd {
+  margin: 0;
+  color: var(--color-text-2);
+  overflow-wrap: anywhere;
+}
+
+.aknow-preview {
+  max-width: 75ch;
+  margin-inline: auto;
 }
 </style>

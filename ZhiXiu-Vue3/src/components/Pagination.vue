@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { PAGE_SIZE_OPTIONS } from '@/utils/env'
 
-// 全站统一分页：布局固定 total/sizes/prev/pager/next/jumper，避免各页样式漂移
+// 桌面使用完整分页，手机用当前页信息替代密集页码，保留上下页和总条数。
 const props = defineProps({
   total: { type: Number, default: 0 },
   page: { type: Number, default: 1 },
@@ -20,7 +20,7 @@ function syncCompact() {
   compact.value = media.matches
 }
 onMounted(() => {
-  media = window.matchMedia('(max-width: 640px)')
+  media = window.matchMedia('(max-width: 767px)')
   syncCompact()
   media.addEventListener('change', syncCompact)
 })
@@ -29,8 +29,9 @@ onBeforeUnmount(() => media?.removeEventListener('change', syncCompact))
 const visibleLayout = computed(() => props.layout.split(',')
   .map(item => item.trim())
   .filter(item => !compact.value || !['sizes', 'jumper'].includes(item))
-  .map(item => item === 'sizes' ? 'slot' : item)
+  .map(item => item === 'sizes' || (compact.value && item === 'pager') ? 'slot' : item)
   .join(', '))
+const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.size)))
 
 function onCurrentChange(value) {
   emit('update:page', value)
@@ -57,6 +58,7 @@ function onSizeChange(value) {
       @current-change="onCurrentChange"
       @size-change="onSizeChange"
     >
+      <span v-if="compact" class="pagination__pages">第 {{ props.page }} / {{ pageCount }} 页</span>
       <el-select
         v-if="!compact && props.layout.split(',').some(item => item.trim() === 'sizes')"
         :model-value="props.size"
@@ -83,15 +85,28 @@ function onSizeChange(value) {
   width: 128px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .pagination {
     justify-content: center;
   }
 
   .pagination :deep(.el-pagination) {
-    gap: var(--space-1);
+    gap: var(--space-2);
     flex-wrap: wrap;
     justify-content: center;
+  }
+
+  .pagination :deep(.btn-prev),
+  .pagination :deep(.btn-next) {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .pagination__pages {
+    min-width: 104px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-2);
   }
 
   .pagination :deep(.el-pagination__total) {

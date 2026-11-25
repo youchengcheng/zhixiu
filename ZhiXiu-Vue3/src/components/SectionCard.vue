@@ -1,6 +1,7 @@
 <script setup>
 const props = defineProps({
   title: { type: String, default: '' },
+  description: { type: String, default: '' },
   /** none 时内容贴边，适合直接放表格 */
   padding: { type: String, default: 'default' },
   /** 是否用分隔线把标题区与内容分开 */
@@ -13,6 +14,7 @@ const props = defineProps({
     <header v-if="props.title || $slots.extra" class="section-card__head" :class="{ 'is-divided': props.divided }">
       <div class="section-card__heading">
         <h2 class="section-card__title">{{ props.title }}</h2>
+        <p v-if="props.description" class="section-card__desc">{{ props.description }}</p>
       </div>
       <div class="section-card__extra">
         <slot name="extra" />
@@ -60,6 +62,12 @@ const props = defineProps({
   color: var(--color-text-1);
 }
 
+.section-card__desc {
+  margin-top: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--color-text-3);
+}
+
 .section-card__extra {
   display: flex;
   align-items: center;
@@ -86,17 +94,17 @@ const props = defineProps({
   background: var(--color-bg-card);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .section-card__head {
-    padding: var(--space-4) var(--space-4) 0;
+    padding: 20px 20px 0;
   }
 
   .section-card__body {
-    padding: var(--space-4);
+    padding: 20px;
   }
 
   .section-card__foot {
-    padding: var(--space-4);
+    padding: 20px;
   }
 }
 </style>
