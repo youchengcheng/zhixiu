@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>物业报修系统 · 数据库 ER 关系图</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#f1f5f9; color:#1e293b; }
+  header { position:sticky; top:0; z-index:100; background:#fff; border-bottom:1px solid #e2e8f0; padding:10px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  header h1 { font-size:16px; font-weight:700; }
+  header .stat { font-size:12px; color:#64748b; }
+  .legend { display:flex; gap:10px; align-items:center; font-size:12px; color:#475569; flex-wrap:wrap; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+  .zoom { margin-left:auto; display:flex; gap:6px; }
+  .zoom button { border:1px solid #cbd5e1; background:#fff; border-radius:6px; padding:3px 12px; cursor:pointer; font-size:13px; }
+  .zoom button:hover { background:#f1f5f9; }
+  #viewport { overflow:auto; height:calc(100vh - 54px); }
+  #canvas { position:relative; width:1760px; height:1240px; transform-origin:0 0; }
+  #svg { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+  #svg path { pointer-events:stroke; cursor:default; }
+  .card { position:absolute; z-index:2; width:260px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 2px 6px rgba(15,23,42,.08); overflow:hidden; }
+  .card .head { padding:8px 12px; color:#fff; font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:baseline; }
+  .card .head .cn { font-weight:400; font-size:11px; opacity:.9; }
+  .card .body { padding:6px 0; }
+  .frow { display:flex; justify-content:space-between; padding:3px 12px; font-size:12px; font-family:Consolas,Menlo,monospace; line-height:20px; }
+  .frow:hover { background:#f8fafc; }
+  .frow .tag { font-size:10px; padding:0 5px; border-radius:4px; height:16px; line-height:16px; margin-top:2px; }
+  .tag.pk { background:#fef3c7; color:#b45309; }
+  .tag.fk { background:#dbeafe; color:#1d4ed8; }
+  .tag.uk { background:#ede9fe; color:#6d28d9; }
+  .d-user .head { background:#3b82f6; }  .d-user { border-top:3px solid #3b82f6; }
+  .d-order .head { background:#f97316; } .d-order { border-top:3px solid #f97316; }
+  .d-conf .head { background:#22c55e; }  .d-conf { border-top:3px solid #22c55e; }
+  .d-ai .head { background:#a855f7; }    .d-ai { border-top:3px solid #a855f7; }
+  .d-log .head { background:#64748b; }   .d-log { border-top:3px solid #64748b; }
+  section.detail { background:#fff; margin:18px; border-radius:10px; border:1px solid #e2e8f0; padding:16px 20px; }
+  section.detail h2 { font-size:15px; margin-bottom:10px; }
+  table.rel { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.rel th, table.rel td { border:1px solid #e2e8f0; padding:6px 10px; text-align:left; }
+  table.rel th { background:#f8fafc; }
+  table.rel td code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:12px; }
+  .note { font-size:12px; color:#64748b; margin-top:10px; line-height:1.7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>物业报修系统 · 数据库 ER 关系图</h1>
+  <span class="stat">15 张表（业务 12 + AI 3）· 20 条关联</span>
+  <div class="legend">
+    <span><i class="dot" style="background:#3b82f6"></i>用户域</span>
+    <span><i class="dot" style="background:#f97316"></i>工单域</span>
+    <span><i class="dot" style="background:#22c55e"></i>配置域</span>
+    <span><i class="dot" style="background:#a855f7"></i>AI 域</span>
+    <span><i class="dot" style="background:#64748b"></i>日志/反馈</span>
+    <span>— 实线：逻辑外键（1:N / 1:1）</span>
+    <span>- - 虚线：规则匹配（非外键）</span>
+  </div>
+  <div class="zoom">
+    <button onclick="zoomBy(0.1)">＋</button>
+    <button onclick="zoomBy(-0.1)">－</button>
+    <button onclick="resetZoom()">重置</button>
+  </div>
+</header>
+
+<div id="viewport">
+  <div id="canvas">
+    <svg id="svg"></svg>
+  </div>
+</div>
+
+<section class="detail">
+  <h2>关联关系明细</h2>
+  <table class="rel">
+    <thead><tr><th>#</th><th>主表</th><th>从表</th><th>从表外键</th><th>基数</th><th>说明</th></tr></thead>
+    <tbody id="relBody"></tbody>
+  </table>
+  <p class="note">
+    说明：均为<b>逻辑外键</b>，不建物理外键约束（雪花 ID + 逻辑删除场景下由业务层保证一致性）；<code>sla_config</code> 为规则匹配关系，无对应字段。
+    主键统一 BIGINT 雪花 ID；通用字段 create_time / update_time / deleted 未在卡片中展示。
+  </p>
+</section>
+
+<script>
+const DOMAIN = { user:'d-user', order:'d-order', conf:'d-conf', ai:'d-ai', log:'d-log' };
+
+// [表id, 中文名, 域, x, y, [[字段, 标记]...]]  标记: PK/FK/UK/''
+const tables = [
+  ['role','角色表','user',40,60,   [['id','PK'],['role_code',''],['role_name','']]],
+  ['user','用户表','user',40,300,  [['id','PK'],['username',''],['phone',''],['role_id','FK']]],
+  ['announcement','公告表','log',40,560,  [['id','PK'],['title',''],['publisher_id','FK'],['status','']]],
+  ['feedback','问题反馈表','log',40,790,  [['id','PK'],['user_id','FK'],['type',''],['status','']]],
+  ['operation_log','操作日志表','log',40,1020, [['id','PK'],['user_id','FK'],['module',''],['action',''],['cost_time','']]],
+  ['property','房产表','user',450,60,  [['id','PK'],['owner_id','FK'],['full_address',''],['is_default','']]],
+  ['maintenance_worker','维修师傅扩展表','user',450,300, [['id','PK'],['user_id','FK|UK'],['worker_no',''],['skill_tags',''],['work_status',''],['avg_score','']]],
+  ['ai_chat_session','AI 会话表','ai',450,620,  [['id','PK'],['user_id','FK'],['title',''],['resolved','']]],
+  ['ai_chat_message','AI 消息表','ai',450,850,  [['id','PK'],['session_id','FK'],['sender',''],['intent',''],['form_draft','']]],
+  ['work_order','工单表（核心）','order',900,180, [['id','PK'],['order_no',''],['property_id','FK'],['owner_id','FK'],['category_id','FK'],['assigned_worker_id','FK'],['accepted_worker_id','FK'],['ai_draft_id','FK'],['status',''],['urgency','']]],
+  ['repair_category','报修类型表','conf',900,660, [['id','PK'],['name',''],['parent_id','FK'],['status','']]],
+  ['repair_knowledge','维修知识库表','ai',900,880,  [['id','PK'],['title',''],['category_id','FK'],['vectorized','']]],
+  ['work_order_log','工单流转日志表','order',1350,60,  [['id','PK'],['order_id','FK'],['operator_id',''],['action',''],['to_status','']]],
+  ['evaluation','评价表','order',1350,320,  [['id','PK'],['order_id','FK|UK'],['owner_id',''],['worker_id','FK'],['score','']]],
+  ['sla_config','SLA 配置表','conf',1350,600, [['id','PK'],['category_id',''],['urgency',''],['safety_flag',''],['affect_scope',''],['response_timeout',''],['handle_timeout','']]],
+];
+
+// [from(table.field), to(table.field), 标签, 类型]  类型: fk/logic
+const relations = [
+  ['role.id','user.role_id','1:N','fk'],
+  ['user.id','property.owner_id','1:N','fk'],
+  ['user.id','maintenance_worker.user_id','1:1','fk'],
+  ['user.id','work_order.owner_id','1:N','fk'],
+  ['user.id','ai_chat_session.user_id','1:N','fk'],
+  ['user.id','announcement.publisher_id','1:N','fk'],
+  ['user.id','feedback.user_id','1:N','fk'],
+  ['user.id','operation_log.user_id','1:N','fk'],
+  ['property.id','work_order.property_id','1:N','fk'],
+  ['repair_category.id','work_order.category_id','1:N','fk'],
+  ['repair_category.id','repair_category.parent_id','自关联','fk'],
+  ['repair_category.id','repair_knowledge.category_id','1:N','fk'],
+  ['maintenance_worker.id','work_order.assigned_worker_id','1:N 派单','fk'],
+  ['maintenance_worker.id','work_order.accepted_worker_id','1:N 接单','fk'],
+  ['maintenance_worker.id','evaluation.worker_id','1:N','fk'],
+  ['work_order.id','work_order_log.order_id','1:N','fk'],
+  ['work_order.id','evaluation.order_id','1:1','fk'],
+  ['ai_chat_session.id','ai_chat_message.session_id','1:N','fk'],
+  ['ai_chat_message.id','work_order.ai_draft_id','1:1 转工单','fk'],
+  ['sla_config.id','work_order.id','规则匹配','logic'],
+];
+
+const relDetails = [
+  ['role','user','role_id','1:N','用户归属角色（OWNER/WORKER/ADMIN）'],
+  ['user','property','owner_id','1:N','业主名下房产'],
+  ['user','maintenance_worker','user_id','1:1','师傅扩展信息（uk_user_id 唯一）'],
+  ['user','work_order','owner_id','1:N','业主提交工单'],
+  ['user','ai_chat_session','user_id','1:N','业主 AI 会话'],
+  ['user','announcement','publisher_id','1:N','管理员发布公告'],
+  ['user','feedback','user_id','1:N','用户提交反馈'],
+  ['user','operation_log','user_id','1:N','用户操作日志'],
+  ['property','work_order','property_id','1:N','工单所属房产'],
+  ['repair_category','work_order','category_id','1:N','工单报修类型（二级类型）'],
+  ['repair_category','repair_category','parent_id','自关联','类型树（0=一级类型）'],
+  ['repair_category','repair_knowledge','category_id','1:N','知识归属报修类型'],
+  ['maintenance_worker','work_order','assigned_worker_id','1:N','管理员派单给师傅'],
+  ['maintenance_worker','work_order','accepted_worker_id','1:N','师傅实际接单'],
+  ['maintenance_worker','evaluation','worker_id','1:N','师傅被评价，回写 avg_score'],
+  ['work_order','work_order_log','order_id','1:N','工单流转日志'],
+  ['work_order','evaluation','order_id','1:1','一单一评（uk_order_id 唯一）'],
+  ['ai_chat_session','ai_chat_message','session_id','1:N','会话内消息'],
+  ['ai_chat_message','work_order','work_order.ai_draft_id','1:1（可空）','AI 草稿一键转工单'],
+  ['sla_config','work_order','无外键','逻辑匹配','按 category_id+urgency+safety_flag+affect_scope 匹配 SLA 规则'],
+];
+
+const canvas = document.getElementById('canvas');
+const svg = document.getElementById('svg');
+const CARD_W = 260;
+
+// 渲染表卡片
+tables.forEach(([id, cn, dom, x, y, fields]) => {
+  const card = document.createElement('div');
+  card.className = 'card ' + DOMAIN[dom];
+  card.style.left = x + 'px';
+  card.style.top = y + 'px';
+  card.id = 't-' + id;
+  let rows = fields.map(([f, tag]) => {
+    let tags = '';
+    if (tag) tag.split('|').forEach(t => tags += `<span class="tag ${t.toLowerCase()}">${t}</span>`);
+    return `<div class="frow" data-tf="${id}.${f}"><span>${f}</span><span>${tags}</span></div>`;
+  }).join('');
+  card.innerHTML = `<div class="head"><span>${id}</span><span class="cn">${cn}</span></div><div class="body">${rows}</div>`;
+  canvas.appendChild(card);
+});
+
+function anchor(tf) {
+  const el = document.querySelector(`[data-tf="${tf}"]`);
+  const card = el.closest('.card');
+  const cx = parseFloat(card.style.left), cy = parseFloat(card.style.top);
+  return {
+    table: tf.split('.')[0],
+    x: cx, y: cy,
+    rowTop: cy + el.offsetTop,
+    rowMid: cy + el.offsetTop + el.offsetHeight / 2,
+    rowBot: cy + el.offsetTop + el.offsetHeight,
+    left: cx, right: cx + CARD_W,
+    cx: cx + CARD_W / 2,
+    cardH: card.offsetHeight
+  };
+}
+
+function draw() {
+  svg.innerHTML = '';
+  const NS = 'http://www.w3.org/2000/svg';
+  relations.forEach(([f, t, label, type]) => {
+    const A = anchor(f), B = anchor(t);
+    let d;
+    if (A.table === B.table) {
+      // 自关联：右侧小环
+      const x = A.right, y1 = A.rowMid, y2 = B.rowMid, r = 34;
+      d = `M ${x} ${y1} C ${x+r} ${y1}, ${x+r} ${y2}, ${x} ${y2}`;
+    } else {
+      const gapX = Math.abs(A.cx - B.cx);
+      const overlapX = !(A.right + 40 < B.left || B.right + 40 < A.left);
+      let p1, p2, horiz;
+      if (!overlapX) {
+        horiz = true;
+        const aRight = A.cx < B.cx;
+        p1 = [aRight ? A.right : A.left, A.rowMid];
+        p2 = [aRight ? B.left : B.right, B.rowMid];
+      } else {
+        horiz = false;
+        const aAbove = A.y < B.y;
+        p1 = [A.cx, aAbove ? A.rowBot : A.rowTop];
+        p2 = [B.cx, aAbove ? B.rowTop : B.rowBot];
+      }
+      if (horiz) {
+        const dx = Math.max(50, Math.abs(p2[0]-p1[0]) / 2) * Math.sign(p2[0]-p1[0]);
+        d = `M ${p1[0]} ${p1[1]} C ${p1[0]+dx} ${p1[1]}, ${p2[0]-dx} ${p2[1]}, ${p2[0]} ${p2[1]}`;
+      } else {
+        const dy = Math.max(40, Math.abs(p2[1]-p1[1]) / 2) * Math.sign(p2[1]-p1[1]);
+        d = `M ${p1[0]} ${p1[1]} C ${p1[0]} ${p1[1]+dy}, ${p2[0]} ${p2[1]-dy}, ${p2[0]} ${p2[1]}`;
+      }
+    }
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', type === 'logic' ? '#9333ea' : '#94a3b8');
+    path.setAttribute('stroke-width', type === 'logic' ? '1.6' : '1.4');
+    if (type === 'logic') path.setAttribute('stroke-dasharray', '6 4');
+    path.setAttribute('opacity', '0.75');
+    const hit = path.cloneNode();
+    hit.setAttribute('stroke', 'transparent');
+    hit.setAttribute('stroke-width', '12');
+    hit.setAttribute('opacity', '0');
+    svg.appendChild(hit); svg.appendChild(path);
+
+    // 中点标签
+    const mid = cubicMid(d);
+    const g = document.createElementNS(NS, 'g');
+    const text = document.createElementNS(NS, 'text');
+    text.setAttribute('x', mid[0]); text.setAttribute('y', mid[1] - 4);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('font-size', '11');
+    text.setAttribute('fill', type === 'logic' ? '#9333ea' : '#475569');
+    text.setAttribute('style', 'paint-order:stroke;stroke:#fff;stroke-width:4px;');
+    text.textContent = label;
+    g.appendChild(text); svg.appendChild(g);
+
+    // 悬停高亮
+    const on = () => { path.setAttribute('stroke', '#ef4444'); path.setAttribute('stroke-width', '2.4'); path.setAttribute('opacity', '1'); text.setAttribute('fill', '#ef4444'); };
+    const off = () => { path.setAttribute('stroke', type === 'logic' ? '#9333ea' : '#94a3b8'); path.setAttribute('stroke-width', type === 'logic' ? '1.6' : '1.4'); path.setAttribute('opacity', '0.75'); text.setAttribute('fill', type === 'logic' ? '#9333ea' : '#475569'); };
+    [hit, text].forEach(el => { el.addEventListener('mouseenter', on); el.addEventListener('mouseleave', off); });
+  });
+}
+
+// 解析 cubic path 中点（近似：取 path 总长的 50%）
+function cubicMid() { return [0, 0]; }
+
+// 用原生 API 求中点，绘制完成后重算标签位置
+function placeLabels() {
+  const paths = svg.querySelectorAll('path[opacity="0.75"], path[stroke-dasharray]');
+  const texts = svg.querySelectorAll('text');
+  const solidPaths = [...svg.querySelectorAll('path')].filter(p => p.getAttribute('stroke') !== 'transparent');
+  solidPaths.forEach((p, i) => {
+    const len = p.getTotalLength();
+    const pt = p.getPointAtLength(len / 2);
+    if (texts[i]) { texts[i].setAttribute('x', pt.x); texts[i].setAttribute('y', pt.y - 4); }
+  });
+}
+
+draw();
+placeLabels();
+
+// 明细表
+document.getElementById('relBody').innerHTML = relDetails.map((r, i) =>
+  `<tr><td>${i+1}</td><td><code>${r[0]}</code></td><td><code>${r[1]}</code></td><td><code>${r[2]}</code></td><td>${r[3]}</td><td>${r[4]}</td></tr>`
+).join('');
+
+// 缩放
+let scale = 0.75;
+function applyScale() { canvas.style.transform = `scale(${scale})`; canvas.style.width = 1760*scale + 'px'; canvas.style.height = 1240*scale + 'px'; }
+function zoomBy(d) { scale = Math.min(1.5, Math.max(0.4, scale + d)); applyScale(); }
+function resetZoom() { scale = 0.75; applyScale(); }
+applyScale();
+</script>
+</body>
+</html>
