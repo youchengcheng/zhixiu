@@ -135,7 +135,7 @@ async function remove(item) {
 
 <template>
   <div class="layout-page category-page">
-    <PageHeader title="报修类型" description="维护新建报修时可选的两级分类，停用不会影响历史工单显示">
+    <PageHeader title="报修类型">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
       <el-button type="primary" :icon="Plus" @click="openForm()">新增一级分类</el-button>
     </PageHeader>

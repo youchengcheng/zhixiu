@@ -91,7 +91,7 @@ async function onAccept(row) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="我的工单" description="我承接的全部工单与处理进度">
+    <PageHeader title="我的工单">
       <el-button @click="router.push({ name: 'WorkerPending' })">去待接单</el-button>
     </PageHeader>
 
@@ -124,7 +124,6 @@ async function onAccept(row) {
         v-else-if="!rows.length"
         icon="Tickets"
         title="没有符合条件的工单"
-        description="换个状态筛选，或去待接单池抢一单。"
         action-text="去待接单"
         @action="router.push({ name: 'WorkerPending' })"
       />

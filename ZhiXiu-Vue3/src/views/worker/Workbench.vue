@@ -92,7 +92,7 @@ function goDetail(order) {
 
 <template>
   <div class="layout-page worker-workbench">
-    <PageHeader title="工作台" description="今日接单与处理概览，可随时切换在线状态">
+    <PageHeader title="工作台">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
     </PageHeader>
 
@@ -131,7 +131,7 @@ function goDetail(order) {
           <span class="workbench-status__dot" :class="{ 'is-online': online }" aria-hidden="true" />
           <div>
             <p class="workbench-status__title">{{ online ? '当前在线，可接收派单' : '当前离线，不接收新派单' }}</p>
-            <p class="workbench-status__desc">在办工单请在「我的工单」中继续处理</p>
+
           </div>
         </div>
         <el-switch
@@ -147,27 +147,25 @@ function goDetail(order) {
 
       <AppSkeleton v-if="loading" variant="card" :rows="4" :columns="4" />
       <div v-else class="grid grid-4">
-        <StatCard label="累计接单" :value="stats?.totalOrders ?? 0" icon="Tickets" tone="default" hint="历史承接工单总数" />
-        <StatCard label="已完工" :value="stats?.finishOrders ?? 0" icon="Finished" tone="success" hint="成功完成的工单" />
+        <StatCard label="累计接单" :value="stats?.totalOrders ?? 0" icon="Tickets" tone="default" />
+        <StatCard label="已完工" :value="stats?.finishOrders ?? 0" icon="Finished" tone="success" />
         <StatCard
           label="完工率"
           :value="formatPercent(stats?.finishRate)"
           icon="TrendCharts"
           tone="primary"
-          hint="已完工 / 累计接单"
         />
         <StatCard
           label="当前负载"
           :value="stats?.currentLoad ?? 0"
           icon="Odometer"
           tone="warning"
-          hint="在办工单数量"
         />
       </div>
 
       <div class="grid workbench-tasks">
         <!-- 待接单预览 -->
-        <SectionCard title="待接单" description="按紧急程度与发布时间排序">
+        <SectionCard title="待接单">
           <template #extra>
             <el-button text type="primary" @click="router.push({ name: 'WorkerPending' })">去抢单</el-button>
           </template>
@@ -177,7 +175,6 @@ function goDetail(order) {
             v-else-if="!pending.length"
             icon="Aim"
             title="暂时没有待接单"
-            description="有新工单进入待接单池时会显示在这里。"
             size="compact"
             action-text="刷新"
             @action="load"
@@ -197,7 +194,7 @@ function goDetail(order) {
         </SectionCard>
 
         <!-- 在办工单预览 -->
-        <SectionCard class="workbench-active" title="最近工单" description="继续处理你承接的工单">
+        <SectionCard class="workbench-active" title="最近工单">
           <template #extra>
             <el-button text type="primary" @click="router.push({ name: 'WorkerOrderList' })">查看全部</el-button>
           </template>
@@ -207,7 +204,6 @@ function goDetail(order) {
             v-else-if="!activeOrders.length"
             icon="Tickets"
             title="还没有承接工单"
-            description="到「待接单」抢一单，或在派单通知中接受指派。"
             size="compact"
             action-text="去抢单"
             @action="router.push({ name: 'WorkerPending' })"
@@ -265,11 +261,6 @@ function goDetail(order) {
   color: var(--color-text-1);
 }
 
-.workbench-status__desc {
-  margin-top: 2px;
-  font-size: var(--fs-sm);
-  color: var(--color-text-3);
-}
 
 .wb-list {
   display: flex;

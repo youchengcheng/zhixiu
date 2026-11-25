@@ -71,7 +71,7 @@ function onSizeChange(value) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="物业公告" description="与你相关的通知与规则更新" />
+    <PageHeader title="物业公告" />
 
     <SectionCard v-if="loading">
       <AppSkeleton variant="detail" :rows="5" />
@@ -91,7 +91,6 @@ function onSizeChange(value) {
       <EmptyState
         :illustration="illustrations.emptyAnnouncement"
         title="暂时没有公告"
-        description="物业发布通知后，这里会第一时间同步。"
         action-text="刷新"
         @action="load"
       />

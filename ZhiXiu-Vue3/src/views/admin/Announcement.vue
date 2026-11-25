@@ -181,17 +181,13 @@ async function onDelete(item) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="公告管理" description="发布停水检修、社区活动等通知，支持置顶与投放范围">
+    <PageHeader title="公告管理">
+      <span class="aann-filter__count">共 {{ page.total }} 条</span>
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建公告</el-button>
     </PageHeader>
 
     <SectionCard padding="none">
-      <div class="aann-filter page-filter">
-        <span class="aann-filter__desc">草稿与已发布公告都会显示在列表中，可逐条发布或下架</span>
-        <span class="aann-filter__count">共 {{ page.total }} 条</span>
-      </div>
-
       <AppSkeleton v-if="loading" variant="table" :rows="6" />
 
       <EmptyState
@@ -207,7 +203,6 @@ async function onDelete(item) {
         v-else-if="!rows.length"
         icon="Bell"
         title="还没有公告"
-        description="新建后先保存为草稿，确认无误再发布。"
         action-text="新建公告"
         @action="openCreate"
       />
@@ -243,8 +238,7 @@ async function onDelete(item) {
           <el-table-column label="阅读数据" width="110" align="right" class-name="cell--number">
             <template #default="{ row }">
               <div class="record-cell aann-views">
-                <span class="record-cell__metric">{{ row.viewCount ?? 0 }}</span>
-                <span class="record-cell__secondary">次阅读</span>
+                <span class="record-cell__metric">{{ row.viewCount ?? 0 }} 次</span>
               </div>
             </template>
           </el-table-column>
@@ -349,20 +343,6 @@ async function onDelete(item) {
 </template>
 
 <style scoped>
-.aann-filter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-5) var(--space-4);
-  flex-wrap: wrap;
-}
-
-.aann-filter__desc {
-  font-size: var(--fs-sm);
-  color: var(--color-text-3);
-}
-
 .aann-filter__count {
   font-size: var(--fs-sm);
   color: var(--color-text-3);

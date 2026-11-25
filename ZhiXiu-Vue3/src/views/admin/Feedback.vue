@@ -106,7 +106,7 @@ async function submitReply() {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="反馈管理" description="处理业主与师傅提交的功能异常、建议与投诉">
+    <PageHeader title="反馈管理">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
     </PageHeader>
 
@@ -147,7 +147,6 @@ async function submitReply() {
         v-else-if="!rows.length"
         icon="ChatLineSquare"
         title="没有符合条件的反馈"
-        description="换个筛选条件试试，或重置后查看全部反馈。"
         action-text="重置筛选"
         @action="onReset"
       />

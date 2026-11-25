@@ -18,7 +18,6 @@ const props = defineProps({
   icon: { type: String, default: '' },
   /** 图标轨道：default / primary / ai / success / warning / danger */
   tone: { type: String, default: 'default' },
-  hint: { type: String, default: '' },
   /** 深色 KPI 面板：文字走 --kpi-* 令牌，保证白字对比度 */
   dark: { type: Boolean, default: false },
   loading: { type: Boolean, default: false }
@@ -79,13 +78,12 @@ const trendIcon = computed(() => {
       </template>
     </div>
 
-    <div class="stat-card__foot">
-      <span v-if="hasDelta" class="stat-card__trend" :class="`trend-${trendTone}`">
+    <div v-if="hasDelta" class="stat-card__foot">
+      <span class="stat-card__trend" :class="`trend-${trendTone}`">
         <el-icon><component :is="trendIcon" /></el-icon>
         <span class="text-mono">{{ deltaText }}</span>
         <span class="stat-card__trend-label">{{ props.deltaLabel }}</span>
       </span>
-      <span v-if="props.hint" class="stat-card__hint">{{ props.hint }}</span>
     </div>
   </div>
 </template>
@@ -217,13 +215,11 @@ const trendIcon = computed(() => {
 }
 
 .stat-card.is-dark .trend-neutral,
-.stat-card.is-dark .stat-card__trend-label,
-.stat-card.is-dark .stat-card__hint {
+.stat-card.is-dark .stat-card__trend-label {
   color: var(--kpi-text-2);
 }
 
-.stat-card__trend-label,
-.stat-card__hint {
+.stat-card__trend-label {
   color: var(--color-text-3);
 }
 </style>

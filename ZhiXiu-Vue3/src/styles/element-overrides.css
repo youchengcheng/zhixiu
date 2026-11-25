@@ -72,14 +72,15 @@ html .el-textarea__inner:not(:focus):not(:disabled):hover {
 
 html .el-input__wrapper.is-focus,
 html .el-select__wrapper.is-focused,
-html .el-textarea__inner:focus {
+html .el-textarea__inner:focus,
+html .el-textarea__inner:focus-visible {
+  outline: none;
   box-shadow: 0 0 0 1px var(--color-primary) inset, 0 0 0 3px var(--color-primary-soft);
 }
 
-/* 原生输入元素不自绘焦点环：外观完全由外层包装承载，否则会叠出第二层边框 */
+/* 单行 input 的边框由外层承载；textarea 自身的聚焦边框需保留。 */
 html .el-input__inner:focus,
-html .el-input__inner:focus-visible,
-html .el-textarea__inner:focus-visible {
+html .el-input__inner:focus-visible {
   outline: none;
   box-shadow: none;
 }

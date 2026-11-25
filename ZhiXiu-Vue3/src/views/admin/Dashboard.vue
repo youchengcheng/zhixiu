@@ -225,18 +225,18 @@ const { chartRef: aiRef } = useChart(aiOption)
 
 // 4 个核心工单总量指标
 const kpiMain = computed(() => [
-  { label: '工单总量', value: overview.value?.totalOrders ?? 0, icon: 'Tickets', hint: '历史全部工单' },
-  { label: '待接单', value: overview.value?.pendingOrders ?? 0, icon: 'Aim', hint: '待接单池中的工单' },
-  { label: '处理中', value: overview.value?.goingOrders ?? 0, icon: 'Odometer', hint: '已接单正在处理' },
-  { label: '已完工', value: overview.value?.completedOrders ?? 0, icon: 'Finished', hint: '确认完工的工单' }
+  { label: '工单总量', value: overview.value?.totalOrders ?? 0, icon: 'Tickets' },
+  { label: '待接单', value: overview.value?.pendingOrders ?? 0, icon: 'Aim' },
+  { label: '处理中', value: overview.value?.goingOrders ?? 0, icon: 'Odometer' },
+  { label: '已完工', value: overview.value?.completedOrders ?? 0, icon: 'Finished' }
 ])
 
 // 响应效率与服务质量指标
 const kpiSub = computed(() => [
-  { label: '平均响应', value: formatMinutes(overview.value?.avgResponseMinutes), icon: 'Stopwatch', tone: 'default', hint: '从提交到接单' },
-  { label: '平均处理', value: formatMinutes(overview.value?.avgHandleMinutes), icon: 'TrendCharts', tone: 'primary', hint: '从接单到完工' },
-  { label: '平均评分', value: overview.value?.avgScore ?? 0, unit: '分', icon: 'Stamp', tone: 'success', hint: '来自业主评价' },
-  { label: 'SLA 超时', value: overview.value?.slaBreachedCount ?? 0, icon: 'Warning', tone: 'danger', hint: '已触发升级的工单' }
+  { label: '平均响应', value: formatMinutes(overview.value?.avgResponseMinutes), icon: 'Stopwatch', tone: 'default' },
+  { label: '平均处理', value: formatMinutes(overview.value?.avgHandleMinutes), icon: 'TrendCharts', tone: 'primary' },
+  { label: '平均评分', value: overview.value?.avgScore ?? 0, unit: '分', icon: 'Stamp', tone: 'success' },
+  { label: 'SLA 超时', value: overview.value?.slaBreachedCount ?? 0, icon: 'Warning', tone: 'danger' }
 ])
 </script>
 
@@ -272,7 +272,6 @@ const kpiSub = computed(() => [
             :label="item.label"
             :value="item.value"
             :icon="item.icon"
-            :hint="item.hint"
           />
         </div>
       </div>
@@ -287,18 +286,17 @@ const kpiSub = computed(() => [
           :unit="item.unit"
           :icon="item.icon"
           :tone="item.tone"
-          :hint="item.hint"
         />
       </div>
 
       <!-- 趋势 + 类型分布 -->
       <div class="grid dashboard-charts">
-        <SectionCard title="工单趋势" :description="`近 ${trendDays} 天每日新增工单`">
+        <SectionCard title="工单趋势">
           <AppSkeleton v-if="loading" variant="chart" :height="260" />
           <div v-else ref="trendRef" class="chart chart--md" />
         </SectionCard>
 
-        <SectionCard title="工单类型分布" description="按一级报修类型统计">
+        <SectionCard title="工单类型分布">
           <AppSkeleton v-if="loading" variant="chart" :height="260" />
           <div v-else ref="distributionRef" class="chart chart--md" />
         </SectionCard>
@@ -306,19 +304,22 @@ const kpiSub = computed(() => [
 
       <!-- 排行 + 满意度 -->
       <div class="grid grid-2">
-        <SectionCard title="师傅接单排行" description="按完工量取前 5 名">
+        <SectionCard title="师傅接单排行">
           <AppSkeleton v-if="loading" variant="chart" :height="260" />
           <div v-else ref="rankingRef" class="chart chart--md" />
         </SectionCard>
 
-        <SectionCard title="满意度分布" :description="`共 ${satisfaction.total} 条评价，平均 ${satisfaction.avgScore} 分`">
+        <SectionCard title="满意度分布">
+          <template #extra>
+            <span class="satisfaction-summary">{{ satisfaction.total }} 条评价 · 均分 {{ satisfaction.avgScore }}</span>
+          </template>
           <AppSkeleton v-if="loading" variant="chart" :height="260" />
           <div v-else ref="satisfactionRef" class="chart chart--md" />
         </SectionCard>
       </div>
 
       <!-- AI 自助解决率 -->
-      <SectionCard title="AI 自助解决率" description="智能助手会话的自助解决与转工单占比">
+      <SectionCard title="AI 自助解决率">
         <AppSkeleton v-if="loading" variant="chart" :height="240" />
         <div v-else class="ai-block">
           <div ref="aiRef" class="chart chart--sm" />
@@ -397,6 +398,11 @@ const kpiSub = computed(() => [
 
 .chart {
   width: 100%;
+}
+
+.satisfaction-summary {
+  color: var(--color-text-3);
+  font-size: var(--fs-sm);
 }
 
 .chart--md {

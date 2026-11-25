@@ -100,7 +100,7 @@ function goDetail(row) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="工单管理" description="全量工单查询、派单与改派；SLA 升级工单可单独筛选" />
+    <PageHeader title="工单管理" />
 
     <SectionCard padding="none">
       <div class="aorder-filter page-filter">
@@ -159,7 +159,6 @@ function goDetail(row) {
         v-else-if="!rows.length"
         icon="Tickets"
         title="没有符合条件的工单"
-        description="换个筛选条件试试，或重置后查看全部工单。"
         action-text="重置筛选"
         @action="onReset"
       />

@@ -397,7 +397,6 @@ async function submitCancel() {
           <SectionCard
             v-if="detail.processNote || finishImageList.length"
             title="完工记录"
-            description="师傅提交的处理过程与完工照片"
           >
             <div class="detail-content">
               <section v-if="detail.processNote" class="detail-content__section">
@@ -427,7 +426,6 @@ async function submitCancel() {
           <SectionCard
             v-if="detail.evaluation"
             title="业主评价"
-            description="业主对本次维修服务的评价"
           >
             <div class="evaluation-summary">
               <el-rate

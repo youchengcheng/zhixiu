@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowRight } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
@@ -144,15 +145,25 @@ function onReset() {
 <template>
   <div class="layout-page order-create-page">
     <div class="repair-layout">
-      <aside class="repair-guide" aria-label="报修说明">
-        <PageHeader title="提交报修" description="描述现场情况，物业会安排合适的师傅处理。" :back="true" />
+      <aside class="repair-guide" aria-label="报修流程">
+        <PageHeader title="提交报修" :back="true" />
+
         <div v-if="!loading && hasProperty" class="repair-guide__steps">
-          <h2>把问题交给我们</h2>
-          <p>提供清楚的现场信息，方便师傅判断问题、准备工具。</p>
+          <h2>报修流程</h2>
           <ol>
-            <li><strong>确认房屋与类型</strong><span>选择需要维修的房产和设施。</span></li>
-            <li><strong>描述现场情况</strong><span>说明故障表现，补充照片和联系信息。</span></li>
-            <li><strong>跟踪处理进度</strong><span>提交后可在「我的工单」查看进展。</span></li>
+            <li>
+              <strong>选择房产和维修类型</strong>
+            </li>
+            <li>
+              <strong>填写故障情况和联系方式</strong>
+              <span>现场照片有助于师傅判断问题。</span>
+            </li>
+            <li>
+              <strong>提交后跟踪处理进度</strong>
+              <router-link class="repair-guide__link" :to="{ name: 'OwnerOrderList' }">
+                查看我的工单 <el-icon><ArrowRight /></el-icon>
+              </router-link>
+            </li>
           </ol>
         </div>
       </aside>
@@ -172,7 +183,7 @@ function onReset() {
         />
       </SectionCard>
 
-      <SectionCard v-else title="报修信息" description="带 * 的为必填项">
+      <SectionCard v-else title="报修信息">
         <el-form
           ref="formRef"
           :model="form"

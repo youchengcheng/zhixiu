@@ -291,7 +291,7 @@ function backToList() {
       </div>
       <aside class="order-detail-side">
         <!-- SLA 时限 -->
-        <SectionCard title="服务时限" description="查看接单与完成维修的约定时间">
+        <SectionCard title="服务时限">
           <div class="grid grid-2">
             <div class="sla-item">
               <p class="sla-item__label">响应时限</p>
@@ -325,13 +325,12 @@ function backToList() {
         </SectionCard>
 
         <!-- 流转记录：放在师傅信息下方，长时间线在卡片内滚动 -->
-        <SectionCard title="流转记录" description="每一次状态变更都会写入工单日志">
+        <SectionCard title="流转记录">
           <EmptyState
             v-if="!logs.length"
             icon="List"
             title="暂无流转记录"
             size="compact"
-            description="工单状态发生变化后会在这里留下时间线。"
             action-text="刷新"
             @action="load"
           />

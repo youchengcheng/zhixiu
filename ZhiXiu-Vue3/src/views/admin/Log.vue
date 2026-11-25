@@ -94,7 +94,7 @@ function operatorText(row) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="操作日志" description="记录登录、派单、审核等关键操作，便于追溯问题">
+    <PageHeader title="操作日志">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
     </PageHeader>
 
@@ -156,7 +156,6 @@ function operatorText(row) {
         v-else-if="!rows.length"
         icon="Document"
         title="没有符合条件的日志"
-        description="换个筛选条件或时间范围试试。"
         action-text="重置筛选"
         @action="onReset"
       />

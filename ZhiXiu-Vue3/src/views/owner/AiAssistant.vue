@@ -2,7 +2,7 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CircleClose, Delete, Document, Plus, Promotion } from '@element-plus/icons-vue'
+import { ChatLineSquare, CircleClose, Delete, Document, Plus, Promotion } from '@element-plus/icons-vue'
 import ChatBubble from '@/components/ChatBubble.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import AppSkeleton from '@/components/AppSkeleton.vue'
@@ -52,6 +52,16 @@ let streamVersion = 0
 let disposed = false
 
 const input = ref('')
+const compactLayout = ref(false)
+const composerRows = computed(() => compactLayout.value
+  ? { minRows: 1, maxRows: 4 }
+  : { minRows: 1, maxRows: 6 })
+let compactQuery = null
+
+function syncCompactLayout() {
+  compactLayout.value = compactQuery.matches
+}
+
 const listRef = ref(null)
 const properties = ref([])
 const categoryTree = ref([])
@@ -556,6 +566,9 @@ async function loadReferenceData() {
 }
 
 onMounted(async () => {
+  compactQuery = window.matchMedia('(max-width: 1024px)')
+  syncCompactLayout()
+  compactQuery.addEventListener('change', syncCompactLayout)
   clockTimer = setInterval(() => { clockNow.value = Date.now() }, 1000)
   await Promise.allSettled([loadSessions(), loadReferenceData()])
   if (disposed) return
@@ -573,29 +586,36 @@ onBeforeUnmount(() => {
   streamVersion += 1
   abortStream?.()
   clearInterval(clockTimer)
+  compactQuery?.removeEventListener('change', syncCompactLayout)
 })
 </script>
 
 <template>
-  <div class="layout-page ai-page">
+  <div class="layout-page ai-page" @keydown.esc="historyOpen = false">
     <div class="ai-layout" :class="{ 'has-draft': draftOpen && Boolean(draft) }">
+      <button
+        v-if="historyOpen"
+        class="ai-history-backdrop"
+        type="button"
+        aria-label="关闭会话记录"
+        @click="historyOpen = false"
+      />
       <!-- 会话列表：助手标题 + 新建会话 + 历史会话 -->
       <aside class="ai-sessions surface" :class="{ 'is-history-open': historyOpen }">
         <!-- 助手标识区（原位于页面顶部，现并入左栏，节省首屏纵向空间） -->
         <div class="ai-brand">
           <h1 class="ai-brand__title">智能维修助手</h1>
-          <p class="ai-brand__desc">先获取排查方案，反馈是否解决；需要报修时再生成工单草稿</p>
-          <el-button type="primary" :icon="Plus" class="ai-brand__new" @click="createNewSession">
-            新建会话
+          <el-button type="primary" :icon="Plus" class="ai-brand__new" aria-label="新建会话" title="新建会话" @click="createNewSession">
+            <span class="ai-brand__new-label">新建会话</span>
           </el-button>
+          <button class="ai-history-toggle" type="button" :aria-expanded="historyOpen" aria-controls="ai-history" aria-label="会话记录" title="会话记录" @click="historyOpen = !historyOpen">
+            <el-icon><ChatLineSquare /></el-icon>
+          </button>
         </div>
 
         <header class="ai-panel__head">
           <span class="ai-panel__title">会话</span>
           <span class="ai-panel__count text-mono">{{ sessions.length }}</span>
-          <button class="ai-history-toggle" type="button" :aria-expanded="historyOpen" aria-controls="ai-history" @click="historyOpen = !historyOpen">
-            {{ historyOpen ? '收起会话' : '展开会话' }}
-          </button>
         </header>
 
         <div id="ai-history" class="ai-sessions__body">
@@ -604,7 +624,6 @@ onBeforeUnmount(() => {
             v-else-if="!sessions.length"
             icon="ChatDotRound"
             title="还没有会话"
-            description="点击「新建会话」即可开始咨询。"
             size="compact"
           />
           <ul v-else class="ai-session-list">
@@ -636,8 +655,8 @@ onBeforeUnmount(() => {
 
       <!-- 对话区 -->
       <section class="ai-chat surface">
-        <header class="ai-panel__head">
-          <span class="ai-panel__title truncate">{{ activeSession?.title || '智能维修助手' }}</span>
+        <header class="ai-panel__head ai-chat__head">
+          <span class="ai-panel__title ai-chat__title truncate">{{ activeSession?.title || '智能维修助手' }}</span>
           <div class="ai-panel__tools">
             <!-- 草稿入口与倒计时收进标题栏右侧，避免额外占用对话区高度 -->
             <button
@@ -679,7 +698,6 @@ onBeforeUnmount(() => {
             v-else-if="!messages.length && !activeStreaming"
             icon="ChatDotRound"
             title="说清楚遇到的问题"
-            description="例如「卧室空调不制冷，外机声音很大」。助手会先给出排查方案，你可以反馈是否解决，或选择生成工单草稿。"
           />
 
           <template v-else>
@@ -746,14 +764,14 @@ onBeforeUnmount(() => {
                 class="ai-composer__input"
                 aria-label="描述故障现象"
                 type="textarea"
-                :autosize="{ minRows: 2, maxRows: 6 }"
+                :autosize="composerRows"
                 resize="none"
                 maxlength="2000"
-                placeholder="描述故障现象，Enter 发送，Shift + Enter 换行"
+                placeholder="描述故障现象"
                 @keydown="onComposerKeydown"
               />
-              <el-button v-if="canStop" class="ai-composer__action" :icon="CircleClose" @click="stopStream">
-                停止
+              <el-button v-if="canStop" class="ai-composer__action" :icon="CircleClose" aria-label="停止生成" title="停止生成" @click="stopStream">
+                <span class="ai-composer__action-label">停止</span>
               </el-button>
               <el-button
                 v-else
@@ -762,12 +780,13 @@ onBeforeUnmount(() => {
                 :icon="Promotion"
                 :loading="creatingSession"
                 :disabled="!canSend"
+                aria-label="发送消息"
+                title="发送消息"
                 @click="sendMessage"
               >
-                发送
+                <span class="ai-composer__action-label">发送</span>
               </el-button>
             </div>
-            <span v-if="canStop" class="ai-composer__tip">生成中可随时停止</span>
           </template>
         </footer>
       </section>
@@ -888,8 +907,11 @@ onBeforeUnmount(() => {
   max-width: var(--layout-content-max);
 }
 
-:global(.app-shell.app-shell--owner .ai-page) {
-  padding-bottom: 19.2px;
+@media (min-width: 1025px) {
+  :global(.app-shell.app-shell--owner .layout-page.ai-page) {
+    padding-top: 14px;
+    padding-bottom: 9.6px;
+  }
 }
 
 .ai-layout {
@@ -959,13 +981,6 @@ onBeforeUnmount(() => {
   font-weight: var(--fw-semibold);
   line-height: var(--lh-tight);
   color: var(--color-text-1);
-}
-
-.ai-brand__desc {
-  margin-top: var(--space-2);
-  font-size: var(--fs-xs);
-  line-height: var(--lh-base);
-  color: var(--color-text-3);
 }
 
 /* 新建会话是左栏主操作，撑满宽度便于点击 */
@@ -1056,6 +1071,7 @@ onBeforeUnmount(() => {
 
 .ai-chat__list {
   flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -1107,16 +1123,16 @@ onBeforeUnmount(() => {
 }
 
 .ai-composer__input :deep(.el-textarea__inner) {
-  min-height: 64px !important;
-  padding: 11px 12px;
+  min-height: 41.6px !important;
+  padding: 10px 12px;
   line-height: 21px;
 }
 
-/* 操作按钮与两行输入框等高，形成完整的输入操作组 */
+/* 操作按钮与输入框的默认高度一致。 */
 .ai-composer__action {
   flex: 0 0 auto;
   min-width: 96px;
-  height: 64px;
+  height: 41.6px;
 }
 
 .ai-history-toggle {
@@ -1129,9 +1145,8 @@ onBeforeUnmount(() => {
   font-size: var(--fs-sm);
 }
 
-.ai-composer__tip {
-  font-size: var(--fs-xs);
-  color: var(--color-text-3);
+.ai-history-backdrop {
+  display: none;
 }
 
 /* 最新回答的反馈与草稿入口 */
@@ -1276,48 +1291,164 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1024px) {
-  .ai-layout,
-  .ai-layout.has-draft {
+  :global(.app-shell.app-shell--owner .layout-page.ai-page) {
+    padding: 0;
+    gap: 0;
+    max-width: none;
+  }
+
+  :global(.app-shell.app-shell--owner .ai-page .ai-layout),
+  :global(.app-shell.app-shell--owner .ai-page .ai-layout.has-draft) {
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
     grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
   }
 
-  .ai-brand {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+  .ai-sessions {
+    overflow: visible;
+  }
+
+  :global(.app-shell.app-shell--owner .ai-page .ai-brand) {
+    display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: 8px;
+    min-height: 56px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--color-divider);
+    border-radius: 0;
   }
 
-  .ai-brand__desc {
+  :global(.app-shell.app-shell--owner .ai-page .ai-brand__title) {
+    flex: 1;
+    min-width: 0;
+    font-size: 20px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ai-brand__new,
+  .ai-history-toggle {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-brand__new-label,
+  .ai-sessions > .ai-panel__head,
+  .ai-chat__title {
     display: none;
-  }
-
-  .ai-brand__new {
-    margin-top: 0;
   }
 
   .ai-history-toggle {
-    display: inline-flex;
-    margin-left: auto;
+    font-size: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
   }
 
-  .ai-sessions__body {
+  .ai-history-backdrop {
+    display: block;
+    position: absolute;
+    z-index: 2;
+    inset: 56px 0 0;
+    border: 0;
+    background: transparent;
+  }
+
+  :global(.app-shell.app-shell--owner .ai-page .ai-sessions__body) {
     display: none;
-    max-height: 220px;
+    position: absolute;
+    z-index: 3;
+    inset: 64px 12px auto;
+    max-height: min(50dvh, 360px);
+    padding: 8px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overscroll-behavior-y: contain;
   }
 
-  .is-history-open .ai-sessions__body {
+  :global(.app-shell.app-shell--owner .ai-page .is-history-open .ai-sessions__body) {
     display: block;
   }
 
-  .ai-chat {
+  :global(.app-shell.app-shell--owner .ai-page .ai-chat) {
     min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
-  .ai-chat__list {
-    padding: var(--space-4);
+  .ai-chat__head {
+    min-height: 0;
+    padding-block: 8px;
+    justify-content: flex-end;
+  }
+
+  .ai-chat__head:not(:has(.ai-panel__tools > *)) {
+    display: none;
+  }
+
+  .ai-panel__tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  :global(.app-shell.app-shell--owner .ai-page .ai-chat__list) {
+    padding: 16px 12px;
+    overscroll-behavior-y: contain;
+  }
+
+  .ai-chat__list :deep(.chat-bubble) {
+    flex-shrink: 0;
+  }
+
+  .ai-chat__list :deep(.empty-state) {
+    margin-block: auto;
+    flex-shrink: 0;
+    padding: 24px 12px;
+  }
+
+  :global(.app-shell.app-shell--owner .ai-page .ai-composer) {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  }
+
+  :global(.app-shell.app-shell--owner .ai-page .ai-composer__row) {
+    padding: 0;
+    gap: 8px;
+  }
+
+  .ai-composer__input :deep(.el-textarea__inner) {
+    min-height: 44px !important;
+    padding: 11px 12px;
+    line-height: 22px;
+    font-size: 16px;
+  }
+
+  .ai-composer__action {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ai-composer__action-label {
+    display: none;
+  }
+
+  .ai-brand__new :deep(.el-icon + span),
+  .ai-composer__action :deep(.el-icon + span) {
+    display: none;
   }
 
   .ai-draft {

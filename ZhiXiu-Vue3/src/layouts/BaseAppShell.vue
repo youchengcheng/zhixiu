@@ -27,6 +27,8 @@ const isNarrow = ref(false)
 const serviceNavRef = ref(null)
 const serviceSelectionRef = ref(null)
 const contentRef = ref(null)
+const assistantViewportHeight = ref(0)
+const isAssistant = computed(() => route.name === 'OwnerAiAssistant')
 const pageTransition = ref('ios-page-switch')
 const scrollPositions = new Map()
 let previousPosition = window.history.state?.position ?? 0
@@ -52,18 +54,25 @@ function onPageEnter() {
 
 function syncViewport() {
   isNarrow.value = window.innerWidth < 1024
+  syncAssistantHeight()
   if (!isNarrow.value) {
     appStore.closeMobileNav()
   }
 }
 
+function syncAssistantHeight() {
+  assistantViewportHeight.value = window.visualViewport?.height || window.innerHeight
+}
+
 onMounted(() => {
   syncViewport()
   window.addEventListener('resize', syncViewport)
+  window.visualViewport?.addEventListener('resize', syncAssistantHeight)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', syncViewport)
+  window.visualViewport?.removeEventListener('resize', syncAssistantHeight)
 })
 
 const collapsed = computed(() => appStore.sidebarCollapsed || isNarrow.value)
@@ -106,15 +115,18 @@ function onToggle() {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'app-shell--owner': isOwner, 'app-shell--operations': !isOwner }">
+  <div
+    class="app-shell"
+    :class="{ 'app-shell--owner': isOwner, 'app-shell--operations': !isOwner, 'app-shell--assistant': isAssistant }"
+    :style="{ '--assistant-viewport-height': assistantViewportHeight ? `${assistantViewportHeight}px` : undefined }"
+  >
     <aside v-if="!isNarrow && !isOwner" class="app-shell__side" :class="{ 'is-collapsed': collapsed }">
       <router-link class="brand" :to="userStore.homePath" aria-label="智修云首页">
         <BrandLogo :subtitle="props.roleLabel" :symbol-only="collapsed" />
       </router-link>
       <SideNav :menus="menus" :collapsed="collapsed" />
-      <router-link v-if="!collapsed" class="app-shell__side-note" :to="`${roleRoutes[props.roleCode].path}/profile`">
+      <router-link v-if="!collapsed" class="app-shell__side-note" :to="`${roleRoutes[props.roleCode].path}/profile`" :aria-label="'个人资料：' + userStore.displayName">
         <span>{{ userStore.displayName }}</span>
-        <span class="app-shell__account-hint">管理个人资料 →</span>
       </router-link>
     </aside>
 
@@ -195,6 +207,7 @@ function onToggle() {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -243,6 +256,12 @@ function onToggle() {
 .is-collapsed .brand {
   justify-content: center;
   padding-inline: var(--space-3);
+}
+
+@media (max-width: 1024px) {
+  .app-shell--assistant {
+    height: var(--assistant-viewport-height, 100dvh);
+  }
 }
 </style>
 

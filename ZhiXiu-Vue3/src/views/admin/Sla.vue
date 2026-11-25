@@ -204,7 +204,7 @@ async function onDelete(item) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="SLA 配置" description="按四维条件匹配响应与处理时限，超时自动升级">
+    <PageHeader title="SLA 配置">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
       <el-button type="primary" :icon="Plus" @click="openCreate">新增规则</el-button>
     </PageHeader>

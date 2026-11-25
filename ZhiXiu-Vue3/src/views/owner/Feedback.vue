@@ -92,11 +92,11 @@ function onSizeChange(value) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="问题反馈" description="功能异常、优化建议或投诉，都可以在这里提交，物业会给出回复" />
+    <PageHeader title="问题反馈" />
 
     <div class="feedback-layout">
       <!-- 提交反馈 -->
-      <SectionCard title="提交反馈" description="描述越具体，越容易定位与处理">
+      <SectionCard title="提交反馈">
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
           <el-form-item label="反馈类型" prop="type">
             <DictSelect v-model="form.type" :dict="FEEDBACK_TYPE" :clearable="false" />
@@ -126,7 +126,7 @@ function onSizeChange(value) {
       </SectionCard>
 
       <!-- 我的反馈 -->
-      <SectionCard class="feedback-history" title="我的反馈" description="按提交时间倒序">
+      <SectionCard class="feedback-history" title="我的反馈">
         <div class="feedback-scroll" tabindex="0" role="region" aria-label="我的反馈列表">
           <AppSkeleton v-if="loading" variant="detail" :rows="4" />
 
@@ -143,7 +143,6 @@ function onSizeChange(value) {
             v-else-if="!rows.length"
             :illustration="illustrations.emptyFeedback"
             title="还没有提交过反馈"
-            description="遇到问题或有好建议，左侧填一填就能提交。"
             size="compact"
             action-text="刷新"
             @action="load"

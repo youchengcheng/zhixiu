@@ -383,7 +383,6 @@ async function submitFinish() {
       <SectionCard
         v-if="detail.processNote || finishImageList.length"
         title="完工记录"
-        description="师傅提交的处理过程与完工照片"
       >
         <div class="detail-content">
           <section v-if="detail.processNote" class="detail-content__section">
@@ -414,7 +413,6 @@ async function submitFinish() {
       <SectionCard
         v-if="detail.evaluation"
         title="业主评价"
-        description="业主对本次维修服务的评价"
       >
         <div class="evaluation-summary">
           <el-rate
@@ -472,7 +470,7 @@ async function submitFinish() {
       </SectionCard>
 
       <!-- SLA 时限 -->
-      <SectionCard title="SLA 时限" description="超时未达标会触发升级并通知管理员">
+      <SectionCard title="SLA 时限">
         <div class="grid grid-2">
           <div class="sla-box">
             <p class="sla-box__label">响应时限</p>

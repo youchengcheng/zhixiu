@@ -99,7 +99,7 @@ function onSizeChange(value) {
 
 <template>
   <div class="layout-page notification-page">
-    <PageHeader title="消息中心" description="查看工单进展与 SLA 提醒，未读消息会在顶部显示数量">
+    <PageHeader title="消息中心">
       <el-button
         :icon="Check"
         :loading="readingAll"
@@ -126,7 +126,6 @@ function onSizeChange(value) {
         v-else-if="!rows.length"
         icon="Bell"
         title="暂时没有消息"
-        description="工单状态变化和 SLA 提醒会出现在这里。"
       />
 
       <template v-else>

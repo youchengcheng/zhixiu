@@ -78,7 +78,7 @@ function goDetail(row) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="我的工单" description="跟踪每一单的处理进度，支持按状态与关键字筛选">
+    <PageHeader title="我的工单">
       <el-button type="primary" @click="router.push({ name: 'OwnerOrderCreate' })">提交报修</el-button>
     </PageHeader>
 
@@ -123,7 +123,6 @@ function goDetail(row) {
         v-else-if="!rows.length"
         icon="Tickets"
         title="没有符合条件的工单"
-        description="换个筛选条件试试，或者直接提交一条新的报修。"
         action-text="提交报修"
         @action="router.push({ name: 'OwnerOrderCreate' })"
       />

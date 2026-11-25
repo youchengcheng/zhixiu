@@ -147,7 +147,7 @@ async function onDelete(item) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="我的房产" description="报修时需要指定房屋，默认房产会在提交报修时自动选中">
+    <PageHeader title="我的房产">
       <el-button type="primary" :icon="Plus" @click="openCreate">添加房产</el-button>
     </PageHeader>
 
@@ -169,7 +169,6 @@ async function onDelete(item) {
       <EmptyState
         :illustration="illustrations.emptyProperty"
         title="还没有登记房产"
-        description="把房屋地址登记进来，报修时就能直接选择，师傅也能快速找到位置。"
         action-text="添加房产"
         @action="openCreate"
       />

@@ -10,7 +10,6 @@ const content = computed(() => {
   if (props.view === 'worker') {
     return {
       title: ['用你的手艺，', '守护每一份安心。'],
-      description: '接单、上门、完工记录，让每一次维修都有据可查。',
       features: [
         { icon: Tools, label: '便捷接单' },
         { icon: List, label: '工序留痕' },
@@ -23,7 +22,6 @@ const content = computed(() => {
       props.view === 'owner'
         ? ['从此，家的小问题', '有人在意。']
         : ['让家的小问题，', '都有妥善的回应。'],
-    description: '提交报修、跟踪进度、评价服务，在这里完成。',
     features: [
       { icon: ChatDotRound, label: '智能报修' },
       { icon: List, label: '进度可查' },
@@ -54,7 +52,6 @@ const content = computed(() => {
                 <h1 id="auth-story-title" class="auth-story__title">
                   <span v-for="line in content.title" :key="line">{{ line }}</span>
                 </h1>
-                <p class="auth-story__description">{{ content.description }}</p>
               </div>
             </Transition>
           </div>

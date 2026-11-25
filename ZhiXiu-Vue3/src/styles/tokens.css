@@ -5,7 +5,7 @@
 
 :root {
   /* ---------- 基础层：冷中性黑白灰 ---------- */
-  --p-neutral-0: #fcfcfc;
+  --p-neutral-0: #ffffff;
   --p-neutral-25: #fafafa;
   --p-neutral-50: #f4f4f5;
   --p-neutral-100: #ededf0;
@@ -67,7 +67,7 @@
   /* ============ 语义层 ============ */
 
   /* 背景与表面 */
-  --color-bg-page: var(--p-neutral-50);
+  --color-bg-page: var(--p-neutral-0);
   --color-bg-card: var(--p-neutral-0);
   --color-bg-sunken: var(--p-neutral-100);
   --color-bg-elevated: var(--p-neutral-0);
@@ -94,8 +94,8 @@
   --color-primary-soft: var(--p-neutral-100);
   --color-primary-border: var(--p-brand-200);
   --color-link: var(--p-brand-600);
-  --color-on-primary: #fafafa;
-  --color-bg-sidebar: #eeeeef;
+  --color-on-primary: var(--p-neutral-0);
+  --color-bg-sidebar: var(--p-neutral-0);
 
   /* AI 表面复用主色：入口、对话、草稿与知识引用 */
   --color-ai: var(--color-primary);

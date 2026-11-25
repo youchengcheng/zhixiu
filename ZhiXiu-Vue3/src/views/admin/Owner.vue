@@ -241,7 +241,7 @@ async function onDeleteProperty(item) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="业主管理" description="查看业主账号状态，并代为维护名下房产" />
+    <PageHeader title="业主管理" />
 
     <SectionCard padding="none">
       <div class="aowner-filter page-filter">
@@ -282,7 +282,6 @@ async function onDeleteProperty(item) {
         v-else-if="!rows.length"
         icon="UserFilled"
         title="没有符合条件的业主"
-        description="换个筛选条件试试。"
         size="compact"
       />
 
@@ -355,7 +354,6 @@ async function onDeleteProperty(item) {
           v-else-if="!properties.length"
           :illustration="illustrations.emptyProperty"
           title="该业主还没有登记房产"
-          description="可以代为添加，之后业主就能直接选择该地址报修。"
           size="compact"
           action-text="添加房产"
           @action="openCreateProperty"

@@ -34,27 +34,24 @@ const property = ref(null)
 const stats = computed(() => {
   const list = orders.value
   return [
-    { label: '全部工单', value: orderTotal.value, icon: 'Tickets', tone: 'default', hint: '累计提交' },
+    { label: '全部工单', value: orderTotal.value, icon: 'Tickets', tone: 'default' },
     {
       label: '进行中',
       value: list.filter((item) => ORDER_ACTIVE_STATUS.includes(item.status)).length,
       icon: 'Stopwatch',
-      tone: 'warning',
-      hint: '含待接单与处理中'
+      tone: 'warning'
     },
     {
       label: '待确认完工',
       value: list.filter((item) => item.status === 'SUBMITTED').length,
       icon: 'Finished',
-      tone: 'primary',
-      hint: '师傅已提交，等你确认'
+      tone: 'primary'
     },
     {
       label: '已完结',
       value: list.filter((item) => ORDER_FINISHED_STATUS.includes(item.status)).length,
       icon: 'Finished',
-      tone: 'success',
-      hint: '完工、关闭与取消'
+      tone: 'success'
     }
   ]
 })
@@ -110,13 +107,12 @@ function goDetail(order) {
 
 <template>
   <div class="layout-page owner-home">
-    <PageHeader :title="`你好，${userStore.displayName}`" description="你的社区服务，从这里开始。">
+    <PageHeader :title="`你好，${userStore.displayName}`">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
     </PageHeader>
     <section class="home-welcome surface" aria-labelledby="home-service-title">
       <div class="home-welcome__copy">
         <h2 id="home-service-title">家的小问题，<br />在这里妥善解决。</h2>
-        <p>从提交到完工，每一步进展都看得见。</p>
         <div class="home-welcome__actions">
           <el-button type="primary" :icon="Plus" @click="router.push({ name: 'OwnerOrderCreate' })">提交报修</el-button>
           <el-button :icon="ChatDotRound" @click="router.push({ name: 'OwnerAiAssistant' })">问问智能助手</el-button>
@@ -146,13 +142,12 @@ function goDetail(order) {
           :value="item.value"
           :icon="item.icon"
           :tone="item.tone"
-          :hint="item.hint"
         />
       </div>
 
       <div class="grid home-overview">
         <!-- 最近工单 -->
-        <SectionCard title="最近工单" description="按提交时间倒序展示最近 5 条" class="home-orders">
+        <SectionCard title="最近工单" class="home-orders">
           <template #extra>
             <el-button text type="primary" @click="router.push({ name: 'OwnerOrderList' })">
               查看全部
@@ -165,7 +160,6 @@ function goDetail(order) {
               v-else-if="!recentOrders.length"
               icon="Tickets"
               title="还没有报修记录"
-              description="家里设施出问题时，可以先找智能助手排查，或直接提交报修。"
               action-text="去提交报修"
               @action="router.push({ name: 'OwnerOrderCreate' })"
             />
@@ -186,47 +180,46 @@ function goDetail(order) {
 
         <!-- 最新公告 -->
         <div class="home-community">
-        <SectionCard title="我的房产" class="home-property">
-          <p>{{ propertyText }}</p>
-          <el-button text type="primary" @click="router.push({ name: 'OwnerProperty' })">{{ property ? '管理房产' : '登记房产' }} <el-icon><ArrowRight /></el-icon></el-button>
-        </SectionCard>
-        <SectionCard title="物业公告" description="置顶公告优先展示" class="home-announcements">
-          <template #extra>
-            <el-button text type="primary" @click="router.push({ name: 'OwnerAnnouncement' })">
-              查看全部
-            </el-button>
-          </template>
+          <SectionCard title="我的房产" class="home-property">
+            <p>{{ propertyText }}</p>
+            <el-button text type="primary" @click="router.push({ name: 'OwnerProperty' })">{{ property ? '管理房产' : '登记房产' }} <el-icon><ArrowRight /></el-icon></el-button>
+          </SectionCard>
+          <SectionCard title="物业公告" class="home-announcements">
+            <template #extra>
+              <el-button text type="primary" @click="router.push({ name: 'OwnerAnnouncement' })">
+                查看全部
+              </el-button>
+            </template>
 
-          <div class="home-panel-scroll" role="region" aria-label="物业公告列表" tabindex="0">
-            <AppSkeleton v-if="loading" variant="detail" :rows="3" />
-            <EmptyState
-              v-else-if="!announcements.length"
-              icon="Bell"
-              title="暂无公告"
-              description="物业发布停水、检修或活动通知时会出现在这里。"
-              action-text="刷新"
-              @action="load"
-            />
-            <ul v-else class="home-list">
-              <li v-for="item in announcements" :key="item.id" class="home-list__item">
-                <button
-                  class="home-list__main"
-                  type="button"
-                  @click="router.push({ name: 'OwnerAnnouncement' })"
-                >
-                  <span class="home-list__title truncate">
-                    <span v-if="item.isTop === 1" class="home-list__top">置顶</span>
-                    {{ item.title }}
-                  </span>
-                  <span class="home-list__meta">
-                    <RelativeTime :value="item.publishTime" fallback="尚未发布" />
-                    <span>· {{ dictText(ANNOUNCEMENT_TYPE, item.type) }}</span>
-                  </span>
-                </button>
-              </li>
-            </ul>
-          </div>
-        </SectionCard>
+            <div class="home-panel-scroll" role="region" aria-label="物业公告列表" tabindex="0">
+              <AppSkeleton v-if="loading" variant="detail" :rows="3" />
+              <EmptyState
+                v-else-if="!announcements.length"
+                icon="Bell"
+                title="暂无公告"
+                action-text="刷新"
+                @action="load"
+              />
+              <ul v-else class="home-list">
+                <li v-for="item in announcements" :key="item.id" class="home-list__item">
+                  <button
+                    class="home-list__main"
+                    type="button"
+                    @click="router.push({ name: 'OwnerAnnouncement' })"
+                  >
+                    <span class="home-list__title truncate">
+                      <span v-if="item.isTop === 1" class="home-list__top">置顶</span>
+                      {{ item.title }}
+                    </span>
+                    <span class="home-list__meta">
+                      <RelativeTime :value="item.publishTime" fallback="尚未发布" />
+                      <span>· {{ dictText(ANNOUNCEMENT_TYPE, item.type) }}</span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </SectionCard>
         </div>
       </div>
     </template>

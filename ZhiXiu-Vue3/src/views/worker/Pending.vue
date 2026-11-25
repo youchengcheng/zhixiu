@@ -105,7 +105,7 @@ function onSizeChange(value) {
 
 <template>
   <div class="layout-page worker-pending">
-    <PageHeader title="待接单" description="按紧急程度与发布时间排序，先抢先得">
+    <PageHeader title="待接单">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
     </PageHeader>
 
@@ -150,7 +150,6 @@ function onSizeChange(value) {
         v-else-if="!rows.length"
         :illustration="illustrations.emptyOrder"
         title="暂时没有待接单"
-        :description="categoryId ? '换个类型看看，或稍后刷新。' : '新工单进入待接单池时会自动出现在这里。'"
         action-text="刷新"
         @action="load"
       />

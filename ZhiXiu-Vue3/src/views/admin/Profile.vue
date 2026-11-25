@@ -126,7 +126,7 @@ async function savePassword() {
 
 <template>
   <div class="layout-page profile-page">
-    <PageHeader title="个人中心" description="维护管理员资料与登录密码" />
+    <PageHeader title="个人中心" />
 
     <SectionCard v-if="loading">
       <AppSkeleton variant="detail" :rows="5" />
@@ -134,7 +134,7 @@ async function savePassword() {
 
     <div v-else class="aprofile-layout">
       <!-- 账号信息：账号体系统一维护的只读字段，通栏展示便于一眼看完 -->
-      <SectionCard title="账号信息" description="由账号体系维护，如需变更请联系系统管理员">
+      <SectionCard title="账号信息">
         <dl class="aprofile-grid">
           <div>
             <dt>登录名</dt>
@@ -162,7 +162,7 @@ async function savePassword() {
       <!-- 资料与安全：两栏并排，卡片高度接近，避免一侧留下大片空白 -->
       <div class="aprofile-columns">
         <!-- 基本资料 -->
-        <SectionCard title="基本资料" description="姓名会出现在操作日志与派单备注中">
+        <SectionCard title="基本资料">
           <el-form ref="profileFormRef" :model="form" :rules="profileRules" label-position="top">
             <el-form-item label="头像">
               <div class="aprofile-avatar">
@@ -202,7 +202,7 @@ async function savePassword() {
         </SectionCard>
 
         <!-- 修改密码 -->
-        <SectionCard title="修改密码" description="修改后当前登录仍然有效">
+        <SectionCard title="修改密码">
           <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-position="top">
             <el-form-item label="原密码" prop="oldPassword">
               <el-input v-model="passwordForm.oldPassword" type="password" show-password autocomplete="current-password" />

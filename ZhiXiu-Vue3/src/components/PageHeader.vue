@@ -110,5 +110,6 @@ watch(
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
+  margin-left: auto;
 }
 </style>

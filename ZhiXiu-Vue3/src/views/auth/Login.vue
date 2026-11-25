@@ -57,7 +57,6 @@ async function onSubmit() {
 <template>
   <AuthLayout view="login">
     <h2 id="auth-form-title" class="auth-panel__title">欢迎回来</h2>
-    <p class="auth-panel__description">登录智修云，查看报修进度与待办事项。</p>
     <p v-if="errorMessage" class="auth-form__error" role="alert">{{ errorMessage }}</p>
     <el-form
       ref="formRef"
@@ -89,9 +88,6 @@ async function onSubmit() {
           show-password
         />
       </el-form-item>
-      <p class="auth-form__helper auth-form__login-hint">
-        业主、维修师傅与物业管理员使用同一入口登录。
-      </p>
       <el-button
         type="primary"
         native-type="submit"

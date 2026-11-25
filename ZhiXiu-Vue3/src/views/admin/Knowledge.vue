@@ -285,7 +285,7 @@ function clearSearch() {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="知识库" description="上传维修文档，自动分片并建立智能助手检索知识">
+    <PageHeader title="知识库">
       <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
       <el-button type="primary" :icon="Upload" @click="openCreate">上传知识</el-button>
     </PageHeader>
@@ -330,7 +330,6 @@ function clearSearch() {
         v-else-if="!rows.length"
         icon="Collection"
         title="还没有知识条目"
-        description="把常见故障的排查步骤沉淀进来，智能助手会引用这些内容回答业主。"
         action-text="上传知识"
         @action="openCreate"
       />
@@ -402,7 +401,7 @@ function clearSearch() {
     </SectionCard>
 
     <!-- 检索测试 -->
-    <SectionCard title="检索测试" description="按相似度返回命中的知识分片，用于检查文档内容能否被准确检索">
+    <SectionCard title="检索测试">
       <div class="aknow-search">
         <el-input
           v-model="search.query"
@@ -425,7 +424,6 @@ function clearSearch() {
         v-else-if="searched && !searchResults.length"
         icon="Search"
         title="没有匹配到知识条目"
-        description="换个说法试试，或先补充相关知识并完成向量化。"
         size="compact"
         action-text="清空条件"
         @action="clearSearch"
@@ -490,8 +488,8 @@ function clearSearch() {
               <div class="aknow-upload__hint">PDF、DOCX、TXT、Markdown · 单个文件不超过 10MB</div>
             </el-upload>
             <p class="aknow-upload__hint">
-              {{ editingId ? '不上传新文件将保留当前正文。' : '保存后自动读取正文并分片入库。' }}
-              提取的正文最多 64KB，较长资料请拆分上传；PDF 需包含可复制的文字。
+              <span v-if="editingId">未选择新文件时保留原正文。</span>
+              正文限 64KB；长文请拆分，PDF 须含可选中的文字。
             </p>
             <p v-if="form.file" class="aknow-upload__selected" role="status">
               已选择：{{ form.file.name }}（{{ formatFileSize(form.file.size) }}）

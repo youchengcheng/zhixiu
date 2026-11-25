@@ -1,8 +1,13 @@
 /* 智修云产品界面：社区入口与操作工作台共用一套黑白灰层级与圆角。
    16px 用于表面，8px 用于控件，6px 用于状态标签。 */
+.app-shell.app-shell--owner {
+  --owner-content-max: 1280px;
+  --owner-page-gutter: clamp(40px, 6vw, 80px);
+}
+
 .app-shell.app-shell--owner .layout-page {
-  max-width: 1280px;
-  padding: 28px 40px 48px;
+  max-width: var(--owner-content-max);
+  padding: 28px var(--owner-page-gutter) 48px;
   gap: 28px;
 }
 
@@ -20,7 +25,7 @@
 }
 
 .app-shell .top-bar--service {
-  padding-inline: max(32px, calc((100vw - 1200px) / 2));
+  padding-inline: max(var(--owner-page-gutter), calc((100% - var(--owner-content-max)) / 2 + var(--owner-page-gutter)));
   gap: 16px;
 }
 
@@ -87,12 +92,6 @@
   font-weight: 600;
 }
 
-.app-shell .home-welcome__copy p {
-  margin-top: 10px;
-  color: var(--color-text-2);
-  font-size: 14px;
-}
-
 .app-shell .home-welcome__actions {
   display: flex;
   flex-wrap: wrap;
@@ -120,7 +119,6 @@
 .app-shell .home-metrics .stat-card + .stat-card { border-left: 1px solid var(--color-border); }
 .app-shell .home-metrics .stat-card__value { margin-top: 10px; font-size: 32px; }
 .app-shell .home-metrics .stat-card__icon { display: none; }
-.app-shell .home-metrics .stat-card__hint { margin-top: 6px; }
 
 .app-shell .owner-home .home-overview {
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
@@ -198,24 +196,18 @@
 .app-shell .page-header__back { min-height: 32px; }
 .app-shell .el-button:not(.is-disabled):active { transform: scale(0.98); }
 
-/* 报修：左侧说明、右侧一次性表单，小屏先呈现表单。 */
+/* 报修页保留简洁的流程侧栏，窄屏优先展示表单。 */
 .app-shell .repair-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 40px; align-items: start; }
-.app-shell .repair-guide {
-  position: sticky;
-  top: 36px;
-  /* 扣除页面上下留白，滚到底部时说明栏仍留在原位。 */
-  max-height: calc(100dvh - var(--layout-top-height) - 84px);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-.app-shell .repair-guide__steps { padding-top: 48px; }
+.app-shell .repair-guide { position: sticky; top: 28px; max-height: calc(100dvh - var(--layout-top-height) - 76px); overflow-y: auto; }
+.app-shell .repair-guide__steps { padding-top: 40px; }
 .app-shell .repair-guide h2 { font-size: 22px; letter-spacing: -0.03em; font-weight: 600; }
-.app-shell .repair-guide__steps > p { color: var(--color-text-2); margin-top: 14px; line-height: 1.9; }
-.app-shell .repair-guide ol { display: flex; flex-direction: column; list-style: none; counter-reset: repair-step; margin-top: 32px; gap: 28px; }
+.app-shell .repair-guide ol { display: flex; flex-direction: column; list-style: none; counter-reset: repair-step; margin-top: 24px; gap: 24px; }
 .app-shell .repair-guide li { counter-increment: repair-step; position: relative; padding-left: 38px; }
-.app-shell .repair-guide li::before { content: counter(repair-step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--color-primary-border); border-radius: var(--radius-full); color: var(--color-primary); font-family: var(--font-mono); }
-.app-shell .repair-guide strong { display: block; font-weight: 500; }
-.app-shell .repair-guide li span { display: block; margin-top: 5px; color: var(--color-text-3); font-size: 13px; line-height: 1.7; }
+.app-shell .repair-guide li::before { content: counter(repair-step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--color-border); border-radius: var(--radius-full); color: var(--color-text-2); font-variant-numeric: tabular-nums; }
+.app-shell .repair-guide strong { display: block; font-size: 15px; font-weight: 500; line-height: 1.7; }
+.app-shell .repair-guide li span { display: block; margin-top: 6px; color: var(--color-text-3); font-size: 13px; line-height: 1.7; }
+.app-shell .repair-guide__link { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--color-link); font-size: 13px; line-height: 1.7; }
+.app-shell .repair-guide__link:hover { text-decoration: underline; }
 .app-shell .repair-layout .section-card__body { padding: 28px; }
 .app-shell .repair-layout .order-form > .grid { gap: 20px; }
 .app-shell .repair-layout .order-form__footer { padding-top: 20px; border-top: 1px solid var(--color-divider); }
@@ -234,7 +226,6 @@
 .app-shell .ai-page .ai-sessions { background: transparent; border: 0; }
 .app-shell .ai-page .ai-brand { padding: 12px 12px 24px; background: transparent; border: 0; }
 .app-shell .ai-page .ai-brand__title { font-size: 22px; }
-.app-shell .ai-page .ai-brand__desc { margin-top: 12px; line-height: 1.8; }
 .app-shell .ai-page .ai-sessions .ai-panel__head { border: 0; padding-inline: 12px; }
 .app-shell .ai-page .ai-sessions__body { padding-inline: 0; }
 .app-shell .ai-page .ai-session { border: 0; border-radius: var(--radius-md); }
@@ -263,7 +254,7 @@
 
 @media (max-width: 1279px) {
   .app-shell .brand--service { margin-right: 16px; }
-  .app-shell .top-bar--service { padding-inline: 24px; gap: 12px; }
+  .app-shell .top-bar--service { gap: 12px; }
   .service-nav { gap: 0; }
   .service-nav__item, .service-nav__more { padding-inline: 10px; }
   .app-shell .ai-page .ai-layout.has-draft { grid-template-columns: 200px minmax(0, 1fr); }
@@ -285,12 +276,12 @@
 }
 
 @media (max-width: 767px) {
+  .app-shell.app-shell--owner { --owner-page-gutter: 16px; }
   .app-shell .worker-pending .pending-card__meta { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .app-shell.app-shell--owner .layout-page { padding: 16px 16px 32px; gap: 24px; }
   .app-shell .owner-home .home-welcome { grid-template-columns: minmax(0, 1fr); min-height: auto; }
   .app-shell .home-welcome__copy { padding: 26px 24px; }
   .app-shell .home-welcome__copy h2 { font-size: 26px; }
-  .app-shell .home-welcome__copy p { font-size: 13px; }
   .app-shell .owner-home .home-welcome__image { display: none; }
   .app-shell .home-welcome__actions { gap: 8px; margin-top: 22px; }
   .app-shell .home-welcome__actions .el-button { padding-inline: 12px; font-size: 13px; }
@@ -331,7 +322,6 @@
   .app-shell .home-welcome__copy { padding: 24px 18px; }
   .app-shell .home-welcome__copy h2 { font-size: 23px; }
   .app-shell .home-welcome__actions .el-button { width: 100%; }
-  .app-shell .home-metrics .stat-card__hint { font-size: 11px; }
   .auth-panel, .auth-page--register .auth-panel { padding-inline: 20px; }
 }
 

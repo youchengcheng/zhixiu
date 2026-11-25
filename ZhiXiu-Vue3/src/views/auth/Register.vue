@@ -64,7 +64,6 @@ async function onSubmit() {
 <template>
   <div class="auth-form-view">
     <h2 id="auth-form-title" class="auth-panel__title">创建你的账号</h2>
-    <p class="auth-panel__description">添加房产后，即可报修并查看处理进度。</p>
     <p v-if="errorMessage" class="auth-form__error" role="alert">{{ errorMessage }}</p>
     <el-form
       ref="formRef"

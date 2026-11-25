@@ -128,14 +128,14 @@ async function savePassword() {
 
 <template>
   <div class="layout-page profile-page">
-    <PageHeader title="个人中心" description="维护联系方式与头像，修改登录密码" />
+    <PageHeader title="个人中心" />
 
     <SectionCard v-if="loading">
       <AppSkeleton variant="detail" :rows="5" />
     </SectionCard>
 
     <div v-else class="profile-layout">
-      <SectionCard class="profile-account" title="账号信息" description="如需变更账号信息，请联系物业">
+      <SectionCard class="profile-account" title="账号信息">
         <dl class="account-grid">
           <div>
             <dt>登录名</dt>
@@ -160,7 +160,7 @@ async function savePassword() {
         </dl>
       </SectionCard>
 
-      <SectionCard class="profile-details" title="基本资料" description="姓名与电话会提供给上门师傅">
+      <SectionCard class="profile-details" title="基本资料">
         <el-form ref="profileFormRef" :model="form" :rules="profileRules" label-position="top">
           <el-form-item label="头像">
             <ImageUpload class="profile-avatar" v-model="avatar" :limit="1" biz-type="avatar" tip="支持 jpg / png，不超过 10MB">
@@ -196,7 +196,7 @@ async function savePassword() {
       </SectionCard>
 
       <!-- 修改密码 -->
-      <SectionCard class="profile-security" title="修改密码" description="修改后当前登录仍然有效">
+      <SectionCard class="profile-security" title="修改密码">
         <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-position="top">
           <el-form-item label="原密码" prop="oldPassword">
             <el-input v-model="passwordForm.oldPassword" type="password" show-password autocomplete="current-password" />

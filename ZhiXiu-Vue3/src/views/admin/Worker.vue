@@ -160,7 +160,7 @@ async function onToggleStatus(row, enabled) {
 
 <template>
   <div class="layout-page">
-    <PageHeader title="师傅管理" description="审核师傅资质、控制启用状态，并查看当前负载" />
+    <PageHeader title="师傅管理" />
 
     <SectionCard padding="none">
       <div class="aworker-filter page-filter">
@@ -209,7 +209,6 @@ async function onToggleStatus(row, enabled) {
         v-else-if="!rows.length"
         icon="Tools"
         title="没有符合条件的师傅"
-        description="换个筛选条件试试，或重置后查看全部师傅。"
         action-text="重置筛选"
         @action="onReset"
       />
@@ -253,7 +252,6 @@ async function onToggleStatus(row, enabled) {
             <template #default="{ row }">
               <div class="record-cell aworker-score">
                 <span class="record-cell__metric">{{ row.avgScore ?? '-' }}</span>
-                <span class="record-cell__secondary">综合评分</span>
               </div>
             </template>
           </el-table-column>

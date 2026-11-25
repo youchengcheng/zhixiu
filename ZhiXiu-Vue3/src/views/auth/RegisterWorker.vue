@@ -87,7 +87,6 @@ async function onSubmit() {
 <template>
   <div class="auth-form-view">
     <h2 id="auth-form-title" class="auth-panel__title">加入社区维修服务</h2>
-    <p class="auth-panel__description">工号由系统生成，审核通过后即可接单。</p>
     <p v-if="errorMessage" class="auth-form__error" role="alert">{{ errorMessage }}</p>
     <el-form
       ref="formRef"
