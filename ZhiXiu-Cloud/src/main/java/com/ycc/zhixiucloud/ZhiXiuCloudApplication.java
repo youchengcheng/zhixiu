@@ -1,11 +1,13 @@
 package com.ycc.zhixiucloud;
 
+import com.ycc.zhixiucloud.ai.KnowledgeVectorMaintenance;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableAsync;
 
+import java.util.Arrays;
 import java.util.TimeZone;
 
 /**
@@ -28,6 +30,10 @@ public class ZhiXiuCloudApplication {
     public static void main(String[] args) {
         // 业务期限、恢复工具和 MQ 的绝对期限统一使用东八区。
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
+        if (Arrays.stream(args).anyMatch(arg -> arg.startsWith("--knowledge-vector.command="))) {
+            KnowledgeVectorMaintenance.run(args);
+            return;
+        }
         // 启动 Spring Boot 应用
         SpringApplication.run(ZhiXiuCloudApplication.class, args);
     }

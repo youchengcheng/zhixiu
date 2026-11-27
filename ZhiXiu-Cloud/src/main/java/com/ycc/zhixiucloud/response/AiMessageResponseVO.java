@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * AI 会话历史消息行出参（GET /api/ai/session/{id}/messages，业主端 AI 助手专用）。
@@ -32,6 +33,12 @@ public class AiMessageResponseVO {
     /** 无知识库引用时为空字符串或 null；多项时以英文逗号拼接 */
     @Schema(description = "引用的知识库 ID，逗号分隔")
     private String citations;
+
+    @Schema(description = "引用知识的 ID 和标题")
+    private List<CitationItem> citationItems;
+
+    @Schema(description = "引用是否经过核验")
+    private boolean citationsVerified;
 
     @Schema(description = "发送时间")
     private LocalDateTime createTime;

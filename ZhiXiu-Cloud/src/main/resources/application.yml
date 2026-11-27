@@ -191,6 +191,13 @@ repair:
     follow-up-limit: 2              # 槽位填充最多追问次数
     hot-question-ttl: 3600          # 热门问答缓存秒数
     session-ttl: 7200               # 会话上下文缓存秒数
+    knowledge-vector:
+      provider: ${KNOWLEDGE_VECTOR_PROVIDER:redis}
+      similarity-threshold: 0.75
+      postgres:
+        url: ${KNOWLEDGE_PG_URL:jdbc:postgresql://127.0.0.1:5432/zhixiu_knowledge}
+        username: ${KNOWLEDGE_PG_USERNAME:postgres}
+        password: ${KNOWLEDGE_PG_PASSWORD:postgres}
   # OpenAI 兼容接口配置；temperature 等固定参数在 SpringAiConfig 中设置
   ai-model:
     # 兼容模式地址（默认阿里云百炼），生产可用 DASHSCOPE_BASE_URL 覆盖

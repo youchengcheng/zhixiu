@@ -11,9 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -43,7 +40,7 @@ import java.util.stream.Collectors;
  *   <li>输出统一为人类可读文本，而非 JSON 实体，既减少 Token 也避免暴露内部字段；</li>
  *   <li>参数缺失、查无数据、依赖未装配、检索异常都返回提示文案而不抛异常，
  *       保证工具调用链路不中断，模型仍可继续组织回答；</li>
- *   <li>向量库通过 {@link ObjectProvider} 惰性获取，AI 未启用时工具类仍可正常注册。</li>
+ *   <li>向量库通过 统一的知识检索服务获取，AI 未启用时工具类仍可正常注册。</li>
  * </ul>
  */
 @Slf4j
@@ -73,7 +70,7 @@ public class RepairAssistantTools {
     private final UserMapper userMapper;
 
     /** 向量库可能未装配（AI 未启用），用 ObjectProvider 惰性获取 */
-    private final ObjectProvider<VectorStore> vectorStoreProvider;
+    private final KnowledgeSearchService knowledgeSearchService;
 
     /**
      * 工具：按工单 ID 查询工单摘要。
@@ -150,18 +147,8 @@ public class RepairAssistantTools {
      */
     @Tool(description = "根据用户问题检索维修知识库，返回相关条目的标题与内容摘要")
     public String searchKnowledge(String query) {
-        // 向量库未装配（AI 未启用）时返回提示
-        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
-        if (vectorStore == null) {
-            // 向量库未装配，返回提示
-            return "知识库检索不可用";
-        }
-        // 构建检索请求并执行，异常统一降级为提示文案
         try {
-            // 构建相似度检索请求
-            SearchRequest request = SearchRequest.builder().query(query).topK(KNOWLEDGE_TOPK).build();
-            // 执行向量检索
-            List<Document> documents = vectorStore.similaritySearch(request);
+            List<Document> documents = knowledgeSearchService.search(query, KNOWLEDGE_TOPK);
             // 无命中时给出提示
             if (documents.isEmpty()) {
                 // 返回空结果提示
@@ -174,7 +161,7 @@ public class RepairAssistantTools {
                     .collect(Collectors.joining("\n\n"));
         } catch (Exception e) {
             // 检索异常不抛出，交给模型降级回答
-            log.warn("知识库检索失败：query={}", query, e);
+            log.warn("知识库工具检索失败", e);
             // 返回失败提示，模型可据此降级回答
             return "知识库检索失败";
         }

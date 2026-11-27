@@ -13,13 +13,13 @@ import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.retry.TransientAiException;
 import org.springframework.retry.support.RetryTemplate;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.redis.RedisVectorStore;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.util.StringUtils;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.http.client.ReactorClientHttpRequestFactory;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.client.ResourceAccessException;
@@ -27,17 +27,13 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
-import redis.clients.jedis.DefaultJedisClientConfig;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.JedisPooled;
-
 import java.time.Duration;
 
 /**
- * Spring AI 装配：ChatClient、EmbeddingModel、RedisVectorStore（维修知识向量库）。
+ * Spring AI 装配：ChatClient、EmbeddingModel 和维修知识向量库。
  *
  * <p>开发文档要求「ChatClient + RedisVectorStore + ChatMemory」三件套，这里按本机实际情况落地：
- * ChatClient 与 RedisVectorStore 照旧装配；会话记忆改用 ai_chat_message 表自行维护（Redis 版
+ * 维修知识向量库按配置装配；会话记忆改用 ai_chat_message 表自行维护（Redis 版
  * ChatMemory 仓库在本仓库无对应构件），效果等价且可持久化。</p>
  *
  * <p>在整体架构中的位置：本类是 AI 能力的装配层，只负责创建底层客户端与模型 Bean；
@@ -55,18 +51,6 @@ import java.time.Duration;
 @ConditionalOnExpression("${repair.ai.enabled:true} and '${repair.ai-model.api-key:}'.length() > 0")
 public class SpringAiConfig {
 
-    /** 向量库索引名，与开发文档一致 */
-    private static final String VECTOR_INDEX_NAME = "repair-knowledge";
-
-    /** 向量库 Key 前缀，用于与业务 Redis 数据隔离 */
-    private static final String VECTOR_PREFIX = "repair-knowledge:";
-
-    /** 向量元数据字段名：分片所属的原知识 ID，检索结果据此反查知识条目 */
-    private static final String META_KNOWLEDGE_ID = "knowledgeId";
-
-    /** 向量元数据字段名：知识标题，检索测试展示与 AI 工具标注来源均依赖该字段 */
-    private static final String META_TITLE = "title";
-
     /** 大模型 API Key */
     @Value("${repair.ai-model.api-key:}")
     private String apiKey;
@@ -80,28 +64,12 @@ public class SpringAiConfig {
     private String chatModelName;
 
     /** 向量化模型名 */
-    @Value("${repair.ai-model.embedding-model:text-embedding-v3}")
+    @Value("${repair.ai-model.embedding-model:text-embedding-v4}")
     private String embeddingModelName;
 
     /** 向量维度，须与向量化模型一致 */
     @Value("${repair.ai-model.vector-dimensions:1024}")
     private int vectorDimensions;
-
-    /** Redis 主机，向量库与业务共用实例 */
-    @Value("${spring.data.redis.host:localhost}")
-    private String redisHost;
-
-    /** Redis 端口 */
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
-
-    /** Redis 密码，可为空 */
-    @Value("${spring.data.redis.password:}")
-    private String redisPassword;
-
-    /** Redis 库号，与业务 Redis 保持一致 */
-    @Value("${spring.data.redis.database:0}")
-    private int redisDatabase;
 
     /**
      * 构建 OpenAI 兼容 API 客户端，对话与向量化共用。
@@ -205,47 +173,14 @@ public class SpringAiConfig {
         return ChatClient.builder(chatModel).build();
     }
 
-    /**
-     * 维修知识向量库：Redis Stack（RediSearch）实现，启动时自动建索引。
-     *
-     * <p>索引名与 Key 前缀均带独立命名空间，避免与业务 Redis Key 冲突。
-     * 使用与业务相同的 Redis 实例，但可配置独立库号。</p>
-     *
-     * @param embeddingModel 向量化模型，由向量库在写入/检索时调用
-     * @return 向量库实例
-     */
     @Bean
-    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
-        // 构建 Jedis 连接配置：库号 + 可选密码
-        DefaultJedisClientConfig.Builder configBuilder = DefaultJedisClientConfig.builder()
-                // 使用配置的库号
-                .database(redisDatabase);
-        // 密码非空时才设置，避免空串被当成密码
-        if (StringUtils.hasText(redisPassword)) {
-            // 设置 Redis 密码
-            configBuilder.password(redisPassword);
-        }
-        // 建立 Jedis 连接池
-        JedisPooled jedis = new JedisPooled(new HostAndPort(redisHost, redisPort), configBuilder.build());
-        // 构建向量库：指定索引名、Key 前缀，并让其在启动时初始化 schema
-        RedisVectorStore store = RedisVectorStore.builder(jedis, embeddingModel)
-                // 指定向量索引名
-                .indexName(VECTOR_INDEX_NAME)
-                // 指定 Key 前缀，与业务数据隔离
-                .prefix(VECTOR_PREFIX)
-                // 声明需要随检索结果返回的元数据字段：不声明时 RedisVectorStore 只返回正文与向量分数，
-                // 业务侧将拿不到 knowledgeId / title（检索测试会因无法解析知识 ID 而报错）
-                .metadataFields(
-                        // 原知识 ID 为纯数字字符串，用 TAG 建索引并随结果返回
-                        RedisVectorStore.MetadataField.tag(META_KNOWLEDGE_ID),
-                        // 标题为中文文本，用 TEXT 建索引并随结果返回
-                        RedisVectorStore.MetadataField.text(META_TITLE))
-                // 启动时初始化索引 schema
-                .initializeSchema(true)
-                .build();
-        // 记录向量库装配信息
-        log.info("维修知识向量库已装配：index={}, prefix={}, dimensions={}", VECTOR_INDEX_NAME, VECTOR_PREFIX, vectorDimensions);
-        // 返回向量库实例
-        return store;
+    public KnowledgeVectorStores knowledgeVectorStores(Environment environment, EmbeddingModel embeddingModel) {
+        return new KnowledgeVectorStores(environment, embeddingModel);
+    }
+
+    @Bean
+    @Profile("!knowledge-vector-maintenance")
+    public SmartInitializingSingleton initializeKnowledgeVectorStore(KnowledgeVectorStores stores) {
+        return stores::activeStore;
     }
 }

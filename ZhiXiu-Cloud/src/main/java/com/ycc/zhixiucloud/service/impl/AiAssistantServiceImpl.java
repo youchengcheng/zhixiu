@@ -3,6 +3,11 @@ package com.ycc.zhixiucloud.service.impl;
 import cn.hutool.json.JSONUtil;
 import com.ycc.zhixiucloud.ai.AiStreamRetry;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.ycc.zhixiucloud.ai.KnowledgeCitationVerifier;
+import com.ycc.zhixiucloud.ai.KnowledgeSearchService;
+import com.ycc.zhixiucloud.entity.RepairKnowledge;
+import com.ycc.zhixiucloud.mapper.RepairKnowledgeMapper;
+import com.ycc.zhixiucloud.response.CitationItem;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ycc.zhixiucloud.common.constant.RedisKeys;
 import com.ycc.zhixiucloud.common.exception.BizException;
@@ -36,8 +41,6 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
@@ -227,7 +230,9 @@ public class AiAssistantServiceImpl implements AiAssistantService {
     private final AiStreamRetry aiStreamRetry;
 
     /** 向量库可能未装配（AI 未启用） */
-    private final ObjectProvider<VectorStore> vectorStoreProvider;
+    private final KnowledgeSearchService knowledgeSearch;
+    private final KnowledgeCitationVerifier citationVerifier;
+    private final RepairKnowledgeMapper knowledgeMapper;
 
     /** SSE 专用线程池，Bean 名 sseExecutor */
     @Resource(name = "sseExecutor")
@@ -396,7 +401,11 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                 .eq(AiChatMessage::getSessionId, sessionId)
                 .orderByAsc(AiChatMessage::getCreateTime, AiChatMessage::getId));
         // 逐条转换为出参
-        return messages.stream().map(this::toMessageVO).toList();
+        List<Long> ids = messages.stream().flatMap(message -> citationIds(message.getCitations()).stream())
+                .distinct().toList();
+        Map<Long, String> titles = ids.isEmpty() ? Map.of() : knowledgeMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(RepairKnowledge::getId, RepairKnowledge::getTitle));
+        return messages.stream().map(message -> toMessageVO(message, titles)).toList();
     }
 
     /**
@@ -516,7 +525,7 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                     boolean naturalDraftRequest = ACTION_CHAT.equals(action) && isDraftRequest(content);
                     // 消息与会话标题在短事务中保存，提交后再调用模型。
                     transactionTemplate.executeWithoutResult(status -> {
-                        saveMessage(sessionId, SENDER_USER, content, null, null, null, null, null);
+                        saveMessage(sessionId, SENDER_USER, content, null, null, false, null, null, null);
                         if (!StringUtils.hasText(session.getTitle())) {
                             AiChatSession titleUpdate = new AiChatSession();
                             titleUpdate.setId(sessionId);
@@ -560,13 +569,8 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         String userText = aggregateUserText(sessionId);
         String intent = unresolved ? INTENT_TROUBLESHOOT : detectIntent(userText);
         sendEvent(emitter, "intent", Map.of("intent", intent));
-        List<Document> documents = retrieve(userText);
-        List<String> citationIds = documents.stream()
-                .map(document -> document.getMetadata().getOrDefault("knowledgeId", document.getId()).toString())
-                .distinct().toList();
-        if (!citationIds.isEmpty()) {
-            sendEvent(emitter, "citations", Map.of("ids", citationIds));
-        }
+        List<Document> documents = isGreeting(content) ? List.of()
+                : retrieve(unresolved || continuesTroubleshooting(content) ? userText : content);
 
         StringBuilder answer = new StringBuilder();
         ChatClient chatClient = chatClientProvider.getIfAvailable();
@@ -591,9 +595,15 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         if (!StringUtils.hasText(answer)) {
             throw BizException.of(ResultCode.AI_INVOKE_FAILED);
         }
+        List<CitationItem> citations = citationVerifier.verify(chatClient, answer.toString(), documents);
+        List<String> citationIds = citations.stream().map(CitationItem::id).toList();
         Long messageId = transactionTemplate.execute(status ->
                 saveMessage(sessionId, SENDER_AI, answer.toString(), intent,
-                        citationIds.isEmpty() ? null : String.join(",", citationIds), null, null, null));
+                        citations.isEmpty() ? null : String.join(",", citationIds), !citations.isEmpty(),
+                        null, null, null));
+        if (!citations.isEmpty()) {
+            sendEvent(emitter, "citations", Map.of("ids", citationIds, "items", citations));
+        }
         sendDone(emitter, messageId, session);
     }
 
@@ -609,7 +619,7 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                 sendEvent(emitter, "message", Map.of("delta", answer));
                 Long messageId = transactionTemplate.execute(status ->
                         saveMessage(session.getId(), SENDER_AI, answer, INTENT_FILL_FORM,
-                                null, null, null, null));
+                                null, false, null, null, null));
                 sendDone(emitter, messageId, session);
             } else {
                 sendDone(emitter, latest.getId(), session);
@@ -631,7 +641,7 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         }
         String completeAnswer = question == null ? answer : answer + "\n\n" + question;
         Long messageId = transactionTemplate.execute(status ->
-                saveMessage(session.getId(), SENDER_AI, completeAnswer, INTENT_FILL_FORM, null,
+                saveMessage(session.getId(), SENDER_AI, completeAnswer, INTENT_FILL_FORM, null, false,
                         JSONUtil.toJsonStr(draft), joinSlots(filled), joinSlots(missing)));
         // 从已提交的消息读取创建时间，使 TTL 与刷新后的读取保持一致。
         sendEvent(emitter, "draft", toDraftVO(messageMapper.selectById(messageId)));
@@ -1192,31 +1202,23 @@ public class AiAssistantServiceImpl implements AiAssistantService {
      * @return 相似度最高的若干知识条目，可能为空
      */
     private List<Document> retrieve(String query) {
-        // 延迟获取向量库，AI 未启用时为空
-        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
-        // 向量库不可用时不做检索
-        if (vectorStore == null) {
-            // 未启用则直接返回空列表
+        if (!StringUtils.hasText(query)) {
             return List.of();
         }
-        // 检索异常时降级为空
         try {
-            // 构建相似度检索请求
-            SearchRequest request = SearchRequest.builder()
-                    .query(abbreviate(query, RAG_QUERY_MAX_CHARS))
-                    .topK(RAG_TOPK)
-                    .build();
-            // 执行检索
-            List<Document> documents = vectorStore.similaritySearch(request);
-            // 结果为空按空列表返回
-            return documents == null ? List.of() : documents;
-        // 检索失败降级，不阻断回答
+            return knowledgeSearch.search(abbreviate(query, RAG_QUERY_MAX_CHARS), RAG_TOPK);
         } catch (Exception e) {
-            // 检索异常降级为空，不影响后续回答
-            log.warn("知识库检索失败：query={}", query, e);
-            // 返回空列表
+            log.debug("维修助手知识检索未完成：{}", e.getClass().getSimpleName());
             return List.of();
         }
+    }
+
+    private boolean isGreeting(String content) {
+        return content != null && content.strip().matches("(?i)(你好|您好|在吗|嗨|hello|hi)[！!？?。\\s]*");
+    }
+
+    private boolean continuesTroubleshooting(String content) {
+        return content != null && content.strip().matches("^(刚才|还是|试过了|没解决|仍然|依旧|继续排查).*");
     }
 
     /**
@@ -1235,6 +1237,8 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         builder.append("\n\n【报修类型列表】\n").append(categoryNames());
         // 有命中才注入知识条目
         if (!documents.isEmpty()) {
+            builder.append("\n\n若答案采用了下方来源的具体处置步骤，在正文中附上一条单行 Markdown 引文（用 > 开头）。")
+                    .append("引文须逐字摘录同一片段中至少 24 个字的连续原句。只摘录支持本轮建议的具体段落。");
             // 注入检索命中的知识条目
             builder.append("\n\n【知识库检索结果】\n");
             // 逐条拼接标题与正文
@@ -1503,13 +1507,14 @@ public class AiAssistantServiceImpl implements AiAssistantService {
      * @param content      消息正文
      * @param intent       本轮意图，用户消息为 null
      * @param citations    引用知识条目 ID（逗号分隔），可为 null
+     * @param citationsVerified 有引用且引用经过核验
      * @param draftJson    草稿 JSON，可为 null
      * @param filledSlots  已填槽位（逗号分隔），可为 null
      * @param missingSlots 缺失槽位（逗号分隔），可为 null
      * @return 新消息主键
      */
     private Long saveMessage(Long sessionId, String sender, String content, String intent,
-                             String citations, String draftJson, String filledSlots, String missingSlots) {
+                             String citations, boolean citationsVerified, String draftJson, String filledSlots, String missingSlots) {
         // 组装消息实体
         AiChatMessage message = new AiChatMessage();
         // 归属会话
@@ -1522,6 +1527,7 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         message.setIntent(intent);
         // 引用知识条目 ID
         message.setCitations(citations);
+        message.setCitationsVerified(citationsVerified);
         // 草稿 JSON
         message.setFormDraft(draftJson);
         // 已填槽位快照
@@ -1651,7 +1657,9 @@ public class AiAssistantServiceImpl implements AiAssistantService {
      * @param message 消息实体
      * @return 消息列表项
      */
-    private AiMessageResponseVO toMessageVO(AiChatMessage message) {
+    private AiMessageResponseVO toMessageVO(AiChatMessage message, Map<Long, String> titles) {
+        List<CitationItem> items = citationIds(message.getCitations()).stream()
+                .map(id -> new CitationItem(id.toString(), titles.get(id))).toList();
         // 装配消息列表出参
         return AiMessageResponseVO.builder()
                 .id(message.getId())
@@ -1659,8 +1667,28 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                 .content(message.getContent())
                 .intent(message.getIntent())
                 .citations(message.getCitations())
+                .citationItems(items)
+                .citationsVerified(Boolean.TRUE.equals(message.getCitationsVerified()))
                 .createTime(message.getCreateTime())
                 .build();
+    }
+
+    private List<Long> citationIds(String citations) {
+        if (!StringUtils.hasText(citations)) {
+            return List.of();
+        }
+        List<Long> ids = new ArrayList<>();
+        for (String token : citations.split(",")) {
+            try {
+                long id = Long.parseLong(token.strip());
+                if (id > 0 && !ids.contains(id)) {
+                    ids.add(id);
+                }
+            } catch (NumberFormatException ignored) {
+                // 兼容旧记录移除其中不合法的 ID。
+            }
+        }
+        return ids;
     }
 
     /**

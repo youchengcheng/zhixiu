@@ -413,6 +413,7 @@ CREATE TABLE `ai_chat_message` (
   `content`           TEXT                 COMMENT '消息内容(Markdown)',
   `intent`            VARCHAR(20)          DEFAULT NULL COMMENT 'QA问答 / TROUBLESHOOT排查 / FILL_FORM收集信息',
   `citations`         VARCHAR(500)         DEFAULT NULL COMMENT '引用的知识库ID',
+  `citations_verified` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '引用是否经过核验',
   `form_draft`        JSON                 COMMENT '工单草稿(JSON)，仅收集信息阶段',
   `filled_slots`      VARCHAR(500)         DEFAULT NULL COMMENT '已填充槽位名，逗号分隔',
   `missing_slots`     VARCHAR(500)         DEFAULT NULL COMMENT '缺失槽位名，逗号分隔',
@@ -430,7 +431,7 @@ CREATE TABLE `ai_chat_message` (
 -- 2.16 repair_knowledge 维修知识库表 ------------------------------------------
 -- 设计意图：维修知识源文档，content 会被分块并向量化后写入 RedisVectorStore；
 -- vectorized 标记是否已完成向量化，version 在内容修改后递增以触发重新向量化；
--- 向量数据保存在 Redis 中，本表只保存源文档与处理状态。
+-- 本表保存源文档与处理状态，分片及向量保存在所选的向量库中。
 CREATE TABLE `repair_knowledge` (
   `id`          BIGINT       NOT NULL,
   `title`       VARCHAR(200) NOT NULL COMMENT '标题',

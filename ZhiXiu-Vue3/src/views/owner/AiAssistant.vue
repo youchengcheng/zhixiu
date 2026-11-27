@@ -45,6 +45,7 @@ const streamAction = ref('')
 const streamText = ref('')
 const streamIntent = ref('')
 const streamCitations = ref([])
+const streamCitationItems = ref([])
 const streamSlots = ref({ filled: [], missing: [] })
 const streamSessionId = ref('')
 let abortStream = null
@@ -151,12 +152,17 @@ async function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
+function citationTitles(items) {
+  return (items || []).map(item => item.title || '来源标题暂不可用').join('、') || '来源标题暂不可用'
+}
+
 function resetStreamState() {
   streaming.value = false
   streamAction.value = ''
   streamText.value = ''
   streamIntent.value = ''
   streamCitations.value = []
+  streamCitationItems.value = []
   streamSlots.value = { filled: [], missing: [] }
   streamSessionId.value = ''
   abortStream = null
@@ -294,6 +300,7 @@ function onStreamEvent(eventName, data, sessionId) {
       break
     case 'citations':
       streamCitations.value = data?.ids || []
+      streamCitationItems.value = data?.items || []
       break
     case 'slot':
       streamSlots.value = { filled: data?.filled || [], missing: data?.missing || [] }
@@ -332,6 +339,8 @@ function finalizeStream(data, sessionId) {
       content,
       intent: streamIntent.value || null,
       citations: streamCitations.value.length ? streamCitations.value.join(',') : null,
+      citationItems: streamCitationItems.value,
+      citationsVerified: streamCitationItems.value.length > 0,
       createTime: formatDateTime(new Date())
     }
     const existing = messages.value.find((item) => String(item.id) === record.id)
@@ -710,7 +719,7 @@ onBeforeUnmount(() => {
               :name="userStore.displayName"
             >
               <div v-if="message.citations" class="ai-citations">
-                引用知识库：{{ message.citations }}
+                {{ message.citationsVerified ? '引用知识库' : '历史引用（未经核验）' }}：{{ citationTitles(message.citationItems) }}
               </div>
               <p v-if="message.incomplete" class="ai-answer-actions__label">回答已停止，补充信息后可继续咨询。</p>
               <div v-if="sessionResolved === 0 && !activeStreaming && hasRepairAnswer && latestAnswer?.id === message.id" class="ai-answer-actions">
@@ -738,7 +747,7 @@ onBeforeUnmount(() => {
               :name="userStore.displayName"
             >
               <div v-if="streamCitations.length" class="ai-citations">
-                引用知识库：{{ streamCitations.join('、') }}
+                {{ streamCitationItems.length ? '引用知识库' : '引用（未经核验）' }}：{{ citationTitles(streamCitationItems) }}
               </div>
               <div v-if="streamSlots.missing.length" class="ai-citations">
                 待补充：{{ missingSlotLabels.join('、') }}

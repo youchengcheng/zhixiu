@@ -81,6 +81,7 @@ const search = reactive({ query: '', topK: 3 })
 const searching = ref(false)
 const searchResults = ref([])
 const searched = ref(false)
+const searchFailed = ref(false)
 
 async function loadCategories() {
   try {
@@ -282,10 +283,12 @@ async function onTestSearch() {
 
   searching.value = true
   searched.value = true
+  searchFailed.value = false
   try {
     searchResults.value = (await testKnowledgeSearch({ query: keyword, topK: search.topK })) || []
   } catch {
     searchResults.value = []
+    searchFailed.value = true
   } finally {
     searching.value = false
   }
@@ -296,6 +299,7 @@ function clearSearch() {
   search.query = ''
   searchResults.value = []
   searched.value = false
+  searchFailed.value = false
 }
 </script>
 
@@ -442,9 +446,16 @@ function clearSearch() {
       <AppSkeleton v-if="searching" variant="detail" :rows="3" />
 
       <EmptyState
+        v-else-if="searchFailed"
+        icon="Search"
+        title="检索暂不可用，请稍后重试"
+        size="compact"
+      />
+
+      <EmptyState
         v-else-if="searched && !searchResults.length"
         icon="Search"
-        title="没有匹配到知识条目"
+        title="未找到相关知识"
         size="compact"
         action-text="清空条件"
         @action="clearSearch"
@@ -460,7 +471,7 @@ function clearSearch() {
           >
             <span class="aknow-result__head">
               <span class="aknow-result__title">{{ item.title }}</span>
-              <span class="aknow-result__score text-mono">相似度 {{ item.score }}</span>
+              <span class="aknow-result__score text-mono">相似度 {{ Number(item.score).toFixed(3) }}</span>
             </span>
             <span v-if="item.categoryName || item.tags" class="aknow-result__meta">
               {{ item.categoryName }}

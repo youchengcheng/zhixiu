@@ -30,6 +30,9 @@ public class AiChatMessage extends BaseEntity {
     /** 引用的知识库记录 ID（repair_knowledge.id），逗号分隔 */
     private String citations;
 
+    /** 旧消息没有核验记录，数据库默认 false。 */
+    private Boolean citationsVerified;
+
     /** 工单草稿（JSON 字符串），仅收集信息阶段使用 */
     private String formDraft;
 
