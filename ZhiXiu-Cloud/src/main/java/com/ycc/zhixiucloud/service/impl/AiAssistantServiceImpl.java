@@ -523,16 +523,20 @@ public class AiAssistantServiceImpl implements AiAssistantService {
                             ? "问题还没有解决，请提供其他排查方案，并询问还需要哪些详细信息。"
                             : requestVO.getContent().trim();
                     boolean naturalDraftRequest = ACTION_CHAT.equals(action) && isDraftRequest(content);
-                    // 消息与会话标题在短事务中保存，提交后再调用模型。
-                    transactionTemplate.executeWithoutResult(status -> {
-                        saveMessage(sessionId, SENDER_USER, content, null, null, false, null, null, null);
-                        if (!StringUtils.hasText(session.getTitle())) {
+                    // 先保存消息，模型调用不占用事务连接。
+                    transactionTemplate.executeWithoutResult(status ->
+                            saveMessage(sessionId, SENDER_USER, content, null, null, false, null, null, null));
+                    // 首条提问用大模型概括为会话标题；失败时回退原文截断，不阻断回答。
+                    if (ACTION_CHAT.equals(action) && !StringUtils.hasText(session.getTitle())) {
+                        String title = summarizeTitle(content);
+                        transactionTemplate.executeWithoutResult(status -> {
                             AiChatSession titleUpdate = new AiChatSession();
                             titleUpdate.setId(sessionId);
-                            titleUpdate.setTitle(abbreviate(content, TITLE_MAX));
+                            titleUpdate.setTitle(title);
                             sessionMapper.updateById(titleUpdate);
-                        }
-                    });
+                        });
+                        session.setTitle(title);
+                    }
                     if (naturalDraftRequest) {
                         generateDraft(session, null, emitter);
                     } else {
@@ -1689,6 +1693,57 @@ public class AiAssistantServiceImpl implements AiAssistantService {
             }
         }
         return ids;
+    }
+
+    /**
+     * 生成会话标题。
+     *
+     * <p>用大模型把首条业主提问概括为「故障对象 + 现象」的短标题；模型未启用、
+     * 调用失败或输出为空时，回退为首条消息截断，保证标题一定会写入。</p>
+     *
+     * @param content 首条业主提问
+     * @return 不超过 {@link #TITLE_MAX} 字的会话标题
+     */
+    private String summarizeTitle(String content) {
+        // 模型不可用时直接使用原文截断兜底
+        String fallback = abbreviate(content, TITLE_MAX);
+        // 延迟获取对话客户端，AI 未启用时为空
+        ChatClient chatClient = chatClientProvider.getIfAvailable();
+        if (chatClient == null || !StringUtils.hasText(content)) {
+            return fallback;
+        }
+        try {
+            // 标题生成使用非流式调用，限制在短标题格式
+            String title = chatClient.prompt()
+                    .system("你是会话标题生成器。用不超过 20 个汉字概括业主描述的报修问题，"
+                            + "写成「故障对象 + 现象」，只输出标题本身，不要引号、标点或解释。")
+                    .user(content)
+                    .call()
+                    .content();
+            // 清理模型可能带出的引号、换行与句末标点
+            title = normalizeTitle(title);
+            return StringUtils.hasText(title) ? abbreviate(title, TITLE_MAX) : fallback;
+        } catch (Exception e) {
+            // 标题生成失败不影响主回答链路
+            log.warn("AI 会话标题生成失败，回退首条消息摘要", e);
+            return fallback;
+        }
+    }
+
+    /**
+     * 规范化模型输出的标题：只保留首行，去掉首尾引号与标点。
+     *
+     * @param title 模型原始输出，可为 null
+     * @return 规范化后的标题，无可保留内容时返回 null
+     */
+    private String normalizeTitle(String title) {
+        if (!StringUtils.hasText(title)) {
+            return null;
+        }
+        // 只取首行，避免模型附带解释
+        String first = title.strip().split("\\R", 2)[0].strip();
+        // 去掉包裹引号与句末标点
+        return first.replaceAll("^[\\s\"'“”‘’《》]+|[\\s\"'“”‘’《》。.！!？?、；;：:]+$", "").strip();
     }
 
     /**

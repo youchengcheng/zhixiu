@@ -29,6 +29,8 @@ const router = useRouter()
 const route = useRoute()
 
 const sessions = ref([])
+// 本地「新对话」占位：提问前只存在于前端，不落库
+const draftSession = ref(null)
 const historyOpen = ref(false)
 const sessionsLoading = ref(true)
 const activeSessionId = ref('')
@@ -103,8 +105,11 @@ const slotLabels = {
 }
 const missingSlotLabels = computed(() => streamSlots.value.missing.map((slot) => slotLabels[slot] || '补充信息'))
 const cascaderProps = { value: 'id', label: 'name', children: 'children', emitPath: false }
+const visibleSessions = computed(() => (draftSession.value
+  ? [draftSession.value, ...sessions.value]
+  : sessions.value))
 const activeSession = computed(
-  () => sessions.value.find((item) => String(item.sessionId) === activeSessionId.value) || null
+  () => visibleSessions.value.find((item) => String(item.sessionId) === activeSessionId.value) || null
 )
 const busy = computed(
   () => creatingSession.value || messagesLoading.value || confirming.value || deletingSession.value
@@ -193,11 +198,17 @@ async function loadSessions() {
   sessionsLoading.value = true
   try {
     const list = (await listSessions()) || []
-    if (!disposed) sessions.value = list.filter((item) => (item.messageCount ?? 0) > 0)
+    if (disposed) return
+    sessions.value = list.filter((item) => (item.messageCount ?? 0) > 0)
+    // 本地新对话已经保存并出现在服务端列表后，移除占位，改用服务端标题
+    if (draftSession.value
+      && sessions.value.some((item) => String(item.sessionId) === String(draftSession.value.sessionId))) {
+      draftSession.value = null
+    }
   } catch {
     // 刷新失败时保留已有列表，具体错误由请求拦截器提示。
   } finally {
-    sessionsLoading.value = false
+    if (!disposed) sessionsLoading.value = false
   }
 }
 
@@ -229,6 +240,8 @@ async function loadConversation(sessionId) {
 
 async function selectSession(sessionId) {
   if (String(sessionId) === activeSessionId.value) return
+  // 切走时丢弃尚未提问的本地新对话
+  if (draftSession.value) draftSession.value = null
   activeSessionId.value = String(sessionId)
   resetConversation(true)
   sessionResolved.value = Number(activeSession.value?.resolved || 0)
@@ -251,8 +264,19 @@ async function recoverConversation(sessionId) {
 }
 
 async function createNewSession() {
-  if (!activeSessionId.value && !messages.value.length) return
-  activeSessionId.value = ''
+  // 已在未提问的本地新对话中，不重复创建
+  if (draftSession.value
+    && String(draftSession.value.sessionId) === activeSessionId.value
+    && !messages.value.length && !streaming.value) return
+  draftSession.value = {
+    sessionId: 'draft-' + Date.now(),
+    title: '新对话',
+    messageCount: 0,
+    updateTime: '',
+    resolved: 0,
+    local: true
+  }
+  activeSessionId.value = draftSession.value.sessionId
   resetConversation(true)
   input.value = ''
   historyOpen.value = false
@@ -283,8 +307,8 @@ async function onDeleteSession(session) {
     deletingSession.value = false
   }
   if (deleted && String(session.sessionId) === activeSessionId.value) {
-    await createNewSession()
     if (sessions.value.length) await selectSession(sessions.value[0].sessionId)
+    else await createNewSession()
   }
 }
 
@@ -409,7 +433,10 @@ function startStream(action, content = '', messageId) {
 async function sendMessage() {
   if (!canSend.value) return
   const content = input.value.trim()
-  if (!activeSessionId.value) {
+  // 没有活动会话时，先建立本地新对话
+  if (!activeSessionId.value) await createNewSession()
+  // 本地新对话在首次提问时才真正落库
+  if (draftSession.value?.local && String(draftSession.value.sessionId) === activeSessionId.value) {
     creatingSession.value = true
     try {
       const result = await createSession({})
@@ -417,8 +444,14 @@ async function sendMessage() {
         ElMessage.error('创建会话失败，请重试')
         return
       }
-      activeSessionId.value = String(result.sessionId)
-      await rememberSession(activeSessionId.value)
+      if (disposed) return
+      draftSession.value.sessionId = String(result.sessionId)
+      draftSession.value.local = false
+      // 首条提问已落库，先同步本地条数，回答结束后再由列表接口覆盖
+      draftSession.value.messageCount = 1
+      draftSession.value.updateTime = formatDateTime(new Date())
+      activeSessionId.value = draftSession.value.sessionId
+      await rememberSession(draftSession.value.sessionId)
     } catch {
       return
     } finally {
@@ -624,40 +657,70 @@ onBeforeUnmount(() => {
 
         <header class="ai-panel__head">
           <span class="ai-panel__title">会话</span>
-          <span class="ai-panel__count text-mono">{{ sessions.length }}</span>
+          <span class="ai-panel__count text-mono">{{ visibleSessions.length }}</span>
         </header>
 
         <div id="ai-history" class="ai-sessions__body">
           <AppSkeleton v-if="sessionsLoading" variant="detail" :rows="3" />
           <EmptyState
-            v-else-if="!sessions.length"
+            v-else-if="!visibleSessions.length"
             icon="ChatDotRound"
             title="还没有会话"
             size="compact"
           />
           <ul v-else class="ai-session-list">
-            <li
-              v-for="item in sessions"
+            <!-- 列表只保留标题；完整标题、条数与时间在悬浮浮层中展示 -->
+            <el-tooltip
+              v-for="item in visibleSessions"
               :key="item.sessionId"
-              class="ai-session"
-              :class="{ 'is-active': item.sessionId === activeSessionId }"
+              placement="right"
+              :show-after="150"
+              :show-arrow="false"
+              effect="light"
+              transition="ai-session-tip-fade"
+              popper-class="ai-session-tip"
+              :popper-style="{
+                background: 'var(--color-bg-card)',
+                color: 'var(--color-text-1)',
+                border: '1px solid var(--color-border)',
+                boxShadow: 'var(--shadow-sm)',
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--fs-xs)',
+                lineHeight: 'var(--lh-base)',
+                maxWidth: '320px'
+              }"
             >
-              <button class="ai-session__main" type="button" @click="selectSession(item.sessionId)">
-                <span class="ai-session__title truncate">{{ item.title }}</span>
-                <span class="ai-session__meta">
-                  {{ item.messageCount }} 条 · {{ item.updateTime?.slice(5, 16) || '' }}
-                  <template v-if="streaming && String(item.sessionId) === streamSessionId"> · 正在生成</template>
-                </span>
-              </button>
-              <button
-                class="ai-session__delete"
-                type="button"
-                aria-label="删除会话"
-                @click.stop="onDeleteSession(item)"
-              >
-                <el-icon><Delete /></el-icon>
-              </button>
-            </li>
+              <template #content>
+                <p class="ai-session-tip__title">{{ item.title }}</p>
+                <p class="ai-session-tip__meta">
+                  <template v-if="item.messageCount">{{ item.messageCount }} 条 · {{ item.updateTime?.slice(5, 16) || '' }}</template>
+                  <template v-else>未提问</template>
+                </p>
+              </template>
+              <!-- 浮层挂在整个条目上，避免遮挡右侧删除按钮 -->
+              <li class="ai-session" :class="{ 'is-active': item.sessionId === activeSessionId }">
+                <button class="ai-session__main" type="button" @click="selectSession(item.sessionId)">
+                  <span class="ai-session__title-row">
+                    <span class="ai-session__title truncate">{{ item.title }}</span>
+                    <i
+                      v-if="streaming && String(item.sessionId) === streamSessionId"
+                      class="ai-session__live"
+                      aria-label="正在生成"
+                    />
+                  </span>
+                </button>
+                <button
+                  v-if="!item.local"
+                  class="ai-session__delete"
+                  type="button"
+                  aria-label="删除会话"
+                  @click.stop="onDeleteSession(item)"
+                >
+                  <el-icon><Delete /></el-icon>
+                </button>
+              </li>
+            </el-tooltip>
           </ul>
         </div>
       </aside>
@@ -1002,12 +1065,14 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: var(--space-2);
+  /* 极浅灰底，让白色的悬浮条目有层次 */
+  background: color-mix(in srgb, var(--color-bg-sunken) 30%, transparent);
 }
 
 .ai-session-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2);
 }
 
 .ai-session {
@@ -1019,7 +1084,7 @@ onBeforeUnmount(() => {
 }
 
 .ai-session:hover {
-  background: var(--color-bg-sunken);
+  background: var(--color-bg-card);
 }
 
 .ai-session.is-active {
@@ -1039,14 +1104,38 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
+.ai-session__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .ai-session__title {
+  min-width: 0;
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
   color: var(--color-text-1);
 }
 
-.ai-session__meta {
-  font-size: var(--fs-xs);
+/* 生成中的轻量指示：只用一个小圆点，避免额外占一行 */
+.ai-session__live {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+/* 浮层内容：标题保持正常色，条数与时间用淡色 */
+.ai-session-tip__title {
+  margin: 0;
+  font-weight: var(--fw-medium);
+  color: var(--color-text-1);
+}
+
+.ai-session-tip__meta {
+  margin: 2px 0 0;
   color: var(--color-text-3);
 }
 
@@ -1063,11 +1152,40 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--color-text-2);
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+/* 删除只在悬浮或键盘聚焦时出现，平时保持列表干净 */
+.ai-session:hover .ai-session__delete,
+.ai-session:focus-within .ai-session__delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 触屏设备没有 hover，删除入口常驻可点 */
+@media (hover: none) {
+  .ai-session__delete {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .ai-session__delete:hover {
   color: var(--color-danger-strong);
+}
+
+/* ---------- 会话标题浮层：白底、柔和淡入 ---------- */
+/* 替换默认的线性淡入，用更短的时长和缓出曲线减少突兀感 */
+:global(.ai-session-tip-fade-enter-active),
+:global(.ai-session-tip-fade-leave-active) {
+  transition: opacity 160ms var(--ease-out);
+}
+
+:global(.ai-session-tip-fade-enter-from),
+:global(.ai-session-tip-fade-leave-to) {
+  opacity: 0;
 }
 
 /* ---------- 对话区 ---------- */
