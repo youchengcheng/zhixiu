@@ -764,64 +764,68 @@ onBeforeUnmount(() => {
         </header>
 
         <div ref="listRef" class="ai-chat__list" role="region" aria-label="对话消息" tabindex="0">
-          <AppSkeleton v-if="messagesLoading" variant="detail" :rows="4" />
+          <!-- 切换会话时淡出旧内容、淡入新内容，避免硬切 -->
+          <Transition name="ai-chat-switch" mode="out-in">
+            <AppSkeleton v-if="messagesLoading" key="loading" variant="detail" :rows="4" />
 
-          <EmptyState
-            v-else-if="!messages.length && !activeStreaming"
-            icon="ChatDotRound"
-            title="说清楚遇到的问题"
-          />
+            <EmptyState
+              v-else-if="!messages.length && !activeStreaming"
+              key="empty"
+              icon="ChatDotRound"
+              title="说清楚遇到的问题"
+            />
 
-          <template v-else>
-            <ChatBubble
-              v-for="message in messages"
-              :key="message.id"
-              :sender="message.sender"
-              :content="message.content"
-              :time="message.createTime"
-              :name="userStore.displayName"
-            >
-              <div v-if="message.citations" class="ai-citations">
-                {{ message.citationsVerified ? '引用知识库' : '历史引用（未经核验）' }}：{{ citationTitles(message.citationItems) }}
-              </div>
-              <p v-if="message.incomplete" class="ai-answer-actions__label">回答已停止，补充信息后可继续咨询。</p>
-              <div v-if="sessionResolved === 0 && !activeStreaming && hasRepairAnswer && latestAnswer?.id === message.id" class="ai-answer-actions">
-                <p class="ai-answer-actions__label">问题是否已解决？</p>
-                <div class="ai-answer-actions__buttons">
-                  <el-button size="small" :disabled="busy" @click="onAnswerAction('RESOLVED')">
-                    已解决
-                  </el-button>
-                  <el-button size="small" :disabled="busy" @click="onAnswerAction('UNRESOLVED')">
-                    未解决，继续排查
-                  </el-button>
-                  <el-button v-if="canGenerateDraft" size="small" type="primary" plain :icon="Document" :disabled="busy" @click="onAnswerAction('GENERATE_DRAFT')">
-                    生成工单草稿
-                  </el-button>
+            <div v-else key="messages" class="ai-chat__messages">
+              <ChatBubble
+                v-for="message in messages"
+                :key="message.id"
+                :sender="message.sender"
+                :content="message.content"
+                :time="message.createTime"
+                :name="userStore.displayName"
+              >
+                <div v-if="message.citations" class="ai-citations">
+                  {{ message.citationsVerified ? '引用知识库' : '历史引用（未经核验）' }}：{{ citationTitles(message.citationItems) }}
                 </div>
-              </div>
-            </ChatBubble>
+                <p v-if="message.incomplete" class="ai-answer-actions__label">回答已停止，补充信息后可继续咨询。</p>
+                <div v-if="sessionResolved === 0 && !activeStreaming && hasRepairAnswer && latestAnswer?.id === message.id" class="ai-answer-actions">
+                  <p class="ai-answer-actions__label">问题是否已解决？</p>
+                  <div class="ai-answer-actions__buttons">
+                    <el-button size="small" :disabled="busy" @click="onAnswerAction('RESOLVED')">
+                      已解决
+                    </el-button>
+                    <el-button size="small" :disabled="busy" @click="onAnswerAction('UNRESOLVED')">
+                      未解决，继续排查
+                    </el-button>
+                    <el-button v-if="canGenerateDraft" size="small" type="primary" plain :icon="Document" :disabled="busy" @click="onAnswerAction('GENERATE_DRAFT')">
+                      生成工单草稿
+                    </el-button>
+                  </div>
+                </div>
+              </ChatBubble>
 
-            <!-- 正在生成的回答：无内容时显示打字动画，有内容时尾部带光标 -->
-            <ChatBubble
-              v-if="activeStreaming && streamAction !== 'RESOLVED'"
-              sender="AI"
-              :content="streamText"
-              :loading="true"
-              :name="userStore.displayName"
-            >
-              <div v-if="streamCitations.length" class="ai-citations">
-                {{ streamCitationItems.length ? '引用知识库' : '引用（未经核验）' }}：{{ citationTitles(streamCitationItems) }}
-              </div>
-              <div v-if="streamSlots.missing.length" class="ai-citations">
-                待补充：{{ missingSlotLabels.join('、') }}
-              </div>
-            </ChatBubble>
-          </template>
+              <!-- 正在生成的回答：无内容时显示打字动画，有内容时尾部带光标 -->
+              <ChatBubble
+                v-if="activeStreaming && streamAction !== 'RESOLVED'"
+                sender="AI"
+                :content="streamText"
+                :loading="true"
+                :name="userStore.displayName"
+              >
+                <div v-if="streamCitations.length" class="ai-citations">
+                  {{ streamCitationItems.length ? '引用知识库' : '引用（未经核验）' }}：{{ citationTitles(streamCitationItems) }}
+                </div>
+                <div v-if="streamSlots.missing.length" class="ai-citations">
+                  待补充：{{ missingSlotLabels.join('、') }}
+                </div>
+              </ChatBubble>
 
-          <!-- 免责声明作为对话尾注：跟随消息滚动，只在对话结束后显示 -->
-          <p v-if="!activeStreaming && messages.length" class="ai-chat__disclaimer">
-            助手回答仅供参考，重要操作请与物业确认
-          </p>
+              <!-- 免责声明作为对话尾注：跟随消息滚动，只在对话结束后显示 -->
+              <p v-if="!activeStreaming && messages.length" class="ai-chat__disclaimer">
+                助手回答仅供参考，重要操作请与物业确认
+              </p>
+            </div>
+          </Transition>
         </div>
 
         <footer class="ai-composer">
@@ -1207,6 +1211,36 @@ onBeforeUnmount(() => {
   background: var(--color-ai-canvas);
 }
 
+/* 空对话时，引导图标与文案在对话区内水平、垂直居中 */
+.ai-chat__list :deep(.empty-state) {
+  margin-block: auto;
+}
+
+/* 会话切换：旧内容淡出、新内容淡入，避免直接闪切 */
+.ai-chat__messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ai-chat-switch-enter-active {
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.ai-chat-switch-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.ai-chat-switch-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.ai-chat-switch-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 /* 对话尾注：跟随最后一条消息，始终贴在内容末尾 */
 .ai-chat__disclaimer {
   flex: 0 0 auto;
@@ -1540,7 +1574,6 @@ onBeforeUnmount(() => {
   }
 
   .ai-chat__list :deep(.empty-state) {
-    margin-block: auto;
     flex-shrink: 0;
     padding: 24px 12px;
   }

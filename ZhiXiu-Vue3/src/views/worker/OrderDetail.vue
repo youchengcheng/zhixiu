@@ -338,7 +338,10 @@ async function submitFinish() {
           </div>
         </dl>
 
-        <p v-if="detail.description" class="worder-desc">{{ detail.description }}</p>
+        <div v-if="detail.description" class="worder-desc">
+          <span class="worder-desc__label">故障描述</span>
+          <p class="worder-desc__text">{{ detail.description }}</p>
+        </div>
       </SectionCard>
 
       <!-- 业主与地址：使用工单详情返回的联系人电话和房产地址 -->
@@ -565,13 +568,26 @@ async function submitFinish() {
   color: var(--color-text-1);
 }
 
+/* 故障描述是详情页的核心信息，用浅底与左侧色条突出显示 */
 .worder-desc {
   margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-divider);
+  padding: var(--space-4);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-sunken);
+}
+
+.worder-desc__label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--color-text-3);
+}
+
+.worder-desc__text {
   font-size: var(--fs-body);
   line-height: var(--lh-base);
-  color: var(--color-text-2);
+  color: var(--color-text-1);
   white-space: pre-wrap;
 }
 

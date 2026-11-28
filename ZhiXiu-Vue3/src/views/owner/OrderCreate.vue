@@ -156,7 +156,6 @@ function onReset() {
             </li>
             <li>
               <strong>填写故障情况和联系方式</strong>
-              <span>现场照片有助于师傅判断问题。</span>
             </li>
             <li>
               <strong>提交后跟踪处理进度</strong>
@@ -216,7 +215,7 @@ function onReset() {
           </div>
 
           <el-form-item label="标题" prop="title">
-            <el-input v-model="form.title" maxlength="100" show-word-limit placeholder="一句话说明问题，例如「卧室空调不制冷」" />
+            <el-input v-model="form.title" maxlength="100" show-word-limit placeholder="例如「卧室空调不制冷」" />
           </el-form-item>
 
           <el-form-item label="故障现象" prop="description">
@@ -250,7 +249,7 @@ function onReset() {
 
           <div class="grid grid-2">
             <el-form-item label="安全隐患" prop="safetyFlag">
-              <el-select v-model="form.safetyFlag" placeholder="无则不选" clearable>
+              <el-select v-model="form.safetyFlag" clearable>
                 <el-option v-for="item in SAFETY_FLAGS" :key="item" :label="item" :value="item" />
               </el-select>
             </el-form-item>
@@ -262,7 +261,7 @@ function onReset() {
 
           <div class="grid grid-2">
             <el-form-item label="设备品牌型号" prop="deviceInfo">
-              <el-input v-model="form.deviceInfo" placeholder="例如「格力 KFR-35GW」，有助于师傅备件" />
+              <el-input v-model="form.deviceInfo" placeholder="例如「格力 KFR-35GW」" />
             </el-form-item>
 
             <el-form-item label="期望上门时段" prop="expectedVisitTime">
