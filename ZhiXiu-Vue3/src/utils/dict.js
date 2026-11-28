@@ -142,7 +142,9 @@ export const GENDER = {
 
 export const KNOWLEDGE_VECTORIZED = {
   0: { text: '未向量化', tone: 'warning' },
-  1: { text: '已向量化', tone: 'success' }
+  1: { text: '已向量化', tone: 'success' },
+  // 前端本地态：任务已提交，等待后端异步回写 vectorized
+  VECTORIZING: { text: '向量化中', tone: 'info' }
 }
 
 export const ENABLED_STATUS = {

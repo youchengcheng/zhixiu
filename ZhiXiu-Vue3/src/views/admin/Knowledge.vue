@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, genFileId } from 'element-plus'
 import { Refresh, Search, Upload, UploadFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -18,7 +18,7 @@ import {
   updateKnowledge
 } from '@/api/knowledge'
 import { getCategoryTree } from '@/api/category'
-import { ENABLED_STATUS, KNOWLEDGE_VECTORIZED } from '@/utils/dict'
+import { KNOWLEDGE_VECTORIZED } from '@/utils/dict'
 import { formatDateTime, formatFileSize } from '@/utils/format'
 
 // 知识库管理：文件导入、正文分片向量化及检索测试
@@ -30,6 +30,48 @@ const loading = ref(true)
 const failed = ref(false)
 const acting = ref('')
 const categoryOptions = ref([])
+
+// 向量化由后端异步消费，提交后先在本地标记为「向量化中」，轮询列表等待状态回写
+const vectorizingIds = ref(new Set())
+const POLL_INTERVAL = 2000
+const POLL_MAX_TICKS = 45
+let pollTimer = null
+let pollTicks = 0
+
+function isVectorizing(row) {
+  return vectorizingIds.value.has(String(row.id))
+}
+
+/** 标记已提交向量化任务的条目并开始轮询 */
+function markVectorizing(ids) {
+  const next = new Set(vectorizingIds.value)
+  ids.filter(Boolean).forEach((id) => next.add(String(id)))
+  vectorizingIds.value = next
+  pollTicks = 0
+  if (!pollTimer) pollTimer = window.setInterval(pollVectorized, POLL_INTERVAL)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+  pollTicks = 0
+}
+
+async function pollVectorized() {
+  pollTicks += 1
+  await load(true)
+  // 超时后放弃等待，回到后端真实状态，避免一直停留在「向量化中」
+  if (pollTicks >= POLL_MAX_TICKS) {
+    vectorizingIds.value = new Set()
+    stopPolling()
+  } else if (!vectorizingIds.value.size) {
+    stopPolling()
+  }
+}
+
+onUnmounted(stopPolling)
 
 // 正文查看：列表展示完整正文，检索展示命中的分片
 const previewVisible = ref(false)
@@ -97,9 +139,11 @@ async function loadCategories() {
   }
 }
 
-async function load() {
-  loading.value = true
-  failed.value = false
+async function load(silent = false) {
+  if (!silent) {
+    loading.value = true
+    failed.value = false
+  }
 
   const params = { pageNum: page.pageNum, pageSize: page.pageSize }
   if (query.categoryId) params.categoryId = query.categoryId
@@ -109,12 +153,22 @@ async function load() {
     const data = await listKnowledge(params)
     rows.value = data?.records || []
     page.total = data?.total || 0
+    // 后端回写已向量化后，清除本地「向量化中」标记
+    if (vectorizingIds.value.size) {
+      const next = new Set(vectorizingIds.value)
+      rows.value.forEach((row) => {
+        if (Number(row.vectorized) === 1) next.delete(String(row.id))
+      })
+      vectorizingIds.value = next
+    }
   } catch {
-    rows.value = []
-    page.total = 0
-    failed.value = true
+    if (!silent) {
+      rows.value = []
+      page.total = 0
+      failed.value = true
+    }
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -227,13 +281,15 @@ async function submitForm() {
   try {
     if (editingId.value) {
       await updateKnowledge(editingId.value, payload, onUploadProgress)
+      markVectorizing([editingId.value])
       ElMessage.success('知识已更新，已提交重新分片向量化任务')
     } else {
-      await createKnowledge(payload, onUploadProgress)
+      const id = await createKnowledge(payload, onUploadProgress)
+      markVectorizing([id])
       ElMessage.success('文件已导入，已提交分片向量化任务')
     }
     dialogVisible.value = false
-    await load()
+    await load(true)
   } catch {
     // 拦截器已提示
   } finally {
@@ -245,8 +301,9 @@ async function onRevectorize(item) {
   acting.value = item.id
   try {
     await revectorizeKnowledge(item.id)
-    ElMessage.success('已提交重新分片向量化任务')
-    await load()
+    markVectorizing([item.id])
+    ElMessage.success('已提交重新分片向量化任务，正在处理…')
+    await load(true)
   } catch {
     // 忽略
   } finally {
@@ -267,6 +324,10 @@ async function onDelete(item) {
 
   try {
     await deleteKnowledge(item.id)
+    // 删除后不再等待该条目的向量化结果
+    const next = new Set(vectorizingIds.value)
+    next.delete(String(item.id))
+    vectorizingIds.value = next
     ElMessage.success('知识已删除')
     await load()
   } catch {
@@ -306,7 +367,7 @@ function clearSearch() {
 <template>
   <div class="layout-page">
     <PageHeader title="知识库">
-      <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
+      <el-button :icon="Refresh" :loading="loading" @click="load()">刷新</el-button>
       <el-button type="primary" :icon="Upload" @click="openCreate">上传知识</el-button>
     </PageHeader>
 
@@ -343,7 +404,7 @@ function clearSearch() {
         title="知识库加载失败"
         description="请稍后重试。"
         action-text="重新加载"
-        @action="load"
+        @action="load()"
       />
 
       <EmptyState
@@ -375,15 +436,20 @@ function clearSearch() {
             </template>
           </el-table-column>
 
-          <el-table-column label="处理状态" width="220">
+          <el-table-column label="向量化状态" width="130">
             <template #default="{ row }">
               <div class="record-cell__statuses">
-                <StatusTag
-                  :status="row.vectorized ?? 0"
-                  :dict="KNOWLEDGE_VECTORIZED"
-                  :dot="false"
-                />
-                <StatusTag :status="row.status ?? 1" :dict="ENABLED_STATUS" :dot="false" size="small" />
+                <span class="aknow-vector-state">
+                  <Transition name="aknow-state" mode="out-in">
+                    <StatusTag
+                      :key="isVectorizing(row) ? 'VECTORIZING' : (row.vectorized ?? 0)"
+                      :status="isVectorizing(row) ? 'VECTORIZING' : (row.vectorized ?? 0)"
+                      :class="{ 'is-vectorizing': isVectorizing(row) }"
+                      :dict="KNOWLEDGE_VECTORIZED"
+                      :dot="isVectorizing(row)"
+                    />
+                  </Transition>
+                </span>
               </div>
             </template>
           </el-table-column>
@@ -394,15 +460,16 @@ function clearSearch() {
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="190">
+          <el-table-column label="操作" width="150">
             <template #default="{ row }">
               <div class="table-actions">
                 <el-button text type="primary" @click="openEdit(row)">编辑</el-button>
+                <!-- 兜底重试：仅未向量化且不在处理中时出现，正常条目只保留编辑/删除 -->
                 <el-button
+                  v-if="Number(row.vectorized) !== 1 && !isVectorizing(row)"
                   text
                   type="primary"
-                  :loading="acting === row.id"
-                  :disabled="row.vectorized === 1"
+                  :disabled="acting === row.id"
                   @click="onRevectorize(row)"
                 >
                   向量化
@@ -599,6 +666,67 @@ function clearSearch() {
 .aknow-upload :deep(.el-upload),
 .aknow-upload :deep(.el-upload-dragger) {
   width: 100%;
+}
+
+/* ---------- 向量化状态：切换时淡入淡出，处理中用呼吸圆点提示 ---------- */
+.aknow-vector-state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  /* 固定宽度，切换文案时相邻状态标签不跳动 */
+  min-width: 76px;
+}
+
+.aknow-vector-state .status-tag {
+  width: 100%;
+  justify-content: center;
+}
+
+.aknow-state-enter-active,
+.aknow-state-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.aknow-state-enter-from {
+  opacity: 0;
+  transform: translateY(3px);
+}
+
+.aknow-state-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+.aknow-vector-state .status-tag.is-vectorizing :deep(.status-tag__dot) {
+  animation: aknow-breathe 1.6s var(--ease-in-out) infinite;
+}
+
+@keyframes aknow-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aknow-state-enter-active,
+  .aknow-state-leave-active {
+    transition-duration: 1ms;
+  }
+
+  .aknow-state-enter-from,
+  .aknow-state-leave-to {
+    transform: none;
+  }
+
+  .aknow-vector-state .status-tag.is-vectorizing :deep(.status-tag__dot) {
+    animation: none;
+  }
 }
 
 .aknow-filter {
