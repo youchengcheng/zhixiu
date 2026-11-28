@@ -4,19 +4,17 @@ import { getToken } from './auth'
 import { BizError } from './request'
 
 // AI 采用 POST + JSON，并沿用同一流式接口处理最新回答的按钮动作。
-const CHAT_URL = API_BASE_URL + '/ai/chat'
-
-function realChatStream({ sessionId, content, action = 'CHAT', messageId, onEvent, onDone, onError }) {
+export function openJsonEventStream(path, body, { onEvent, onDone, onError }) {
   const ctrl = new AbortController()
 
-  fetchEventSource(CHAT_URL, {
+  fetchEventSource(API_BASE_URL + path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
       Authorization: 'Bearer ' + getToken()
     },
-    body: JSON.stringify({ sessionId, content, action, messageId }),
+    body: JSON.stringify(body),
     signal: ctrl.signal,
     openWhenHidden: true,
     async onopen(response) {
@@ -60,6 +58,10 @@ function realChatStream({ sessionId, content, action = 'CHAT', messageId, onEven
   })
 
   return () => ctrl.abort()
+}
+
+function realChatStream({ sessionId, content, action = 'CHAT', messageId, onEvent, onDone, onError }) {
+  return openJsonEventStream('/ai/chat', { sessionId, content, action, messageId }, { onEvent, onDone, onError })
 }
 
 /**

@@ -449,12 +449,24 @@ public class WorkOrderServiceImpl implements WorkOrderService {
      */
     @Override
     public PageResult<OrderListResponseVO> pageForWorker(Long workerId, OrderQueryRequestVO requestVO) {
+        return pageForWorker(workerId, requestVO, false);
+    }
+
+    @Override
+    public PageResult<OrderListResponseVO> pageForWorkerTodos(Long workerId, OrderQueryRequestVO requestVO) {
+        return pageForWorker(workerId, requestVO, true);
+    }
+
+    private PageResult<OrderListResponseVO> pageForWorker(Long workerId, OrderQueryRequestVO requestVO, boolean todo) {
         // 覆盖已接单与已分配两种归属，避免派单后列表为空
         LambdaQueryWrapper<WorkOrder> wrapper = Wrappers.<WorkOrder>lambdaQuery()
                 .and(w -> w.eq(WorkOrder::getAcceptedWorkerId, workerId)
                         .or()
                         .eq(WorkOrder::getAssignedWorkerId, workerId))
                 .eq(StringUtils.hasText(requestVO.getStatus()), WorkOrder::getStatus, requestVO.getStatus())
+                .in(todo, WorkOrder::getStatus, List.of("ASSIGNED", "ACCEPTED", "GOING", "PAUSED", "TRANSFER_PENDING"))
+                .and(StringUtils.hasText(requestVO.getKeyword()), w -> w.like(WorkOrder::getOrderNo, requestVO.getKeyword())
+                        .or().like(WorkOrder::getTitle, requestVO.getKeyword()))
                 .eq(requestVO.getCategoryId() != null, WorkOrder::getCategoryId, requestVO.getCategoryId())
                 .orderByDesc(WorkOrder::getCreateTime);
         // 转成分页列表返回
@@ -471,12 +483,21 @@ public class WorkOrderServiceImpl implements WorkOrderService {
      */
     @Override
     public OrderDetailResponseVO getDetailForWorker(Long id) {
+        return getWorkerDetail(id, true);
+    }
+
+    @Override
+    public OrderDetailResponseVO getAssignedDetailForWorker(Long id) {
+        return getWorkerDetail(id, false);
+    }
+
+    private OrderDetailResponseVO getWorkerDetail(Long id, boolean includePublic) {
         // 取当前登录师傅记录 ID
         Long workerId = SecurityUtils.requireWorkerId();
         // 读取工单，不存在则抛异常
         WorkOrder order = requireOrder(id);
         // 可见范围：仍待接单，或本人已接单/被派单
-        boolean visible = OrderStatusEnum.PENDING.getCode().equals(order.getStatus())
+        boolean visible = (includePublic && OrderStatusEnum.PENDING.getCode().equals(order.getStatus()))
                 || workerId.equals(order.getAcceptedWorkerId())
                 || workerId.equals(order.getAssignedWorkerId());
         // 不在可见范围则拒绝访问

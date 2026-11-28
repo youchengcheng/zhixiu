@@ -73,8 +73,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      */
     @Override
     public PageResult<AnnouncementResponseVO> page(PageRequestVO requestVO, String roleCode) {
-        // 判断当前角色是否管理员
-        boolean admin = RoleEnum.ADMIN.getCode().equals(roleCode);
+        return page(requestVO, roleCode, RoleEnum.ADMIN.getCode().equals(roleCode));
+    }
+
+    @Override
+    public PageResult<AnnouncementResponseVO> pagePublishedForRole(PageRequestVO requestVO, String roleCode) {
+        return page(requestVO, roleCode, false);
+    }
+
+    private PageResult<AnnouncementResponseVO> page(PageRequestVO requestVO, String roleCode, boolean showAll) {
         // 按分页参数与角色过滤条件查询
         Page<Announcement> page = announcementMapper.selectPage(
                 // 分页参数：页码与每页条数
@@ -82,9 +89,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 // 构造公告查询条件
                 Wrappers.<Announcement>lambdaQuery()
                         // 管理员看全部（含草稿）；业主/师傅只看已发布且投放范围命中自己的
-                        .eq(!admin, Announcement::getStatus, STATUS_PUBLISHED)
+                        .eq(!showAll, Announcement::getStatus, STATUS_PUBLISHED)
                         // 非管理员限定投放范围为全部或本人角色
-                        .and(!admin, wrapper -> wrapper
+                        .and(!showAll, wrapper -> wrapper
                                 .eq(Announcement::getTargetRole, TARGET_ALL)
                                 .or()
                                 .eq(Announcement::getTargetRole, roleCode))

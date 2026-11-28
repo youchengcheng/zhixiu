@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import SideNav from './components/SideNav.vue'
 import TopBar from './components/TopBar.vue'
+import ConciergePanel from './components/ConciergePanel.vue'
 import BrandLogo from '@/components/BrandLogo.vue'
 import { useSelectionMotion } from '@/composables/useSelectionMotion'
 
@@ -29,6 +30,10 @@ const serviceSelectionRef = ref(null)
 const contentRef = ref(null)
 const assistantViewportHeight = ref(0)
 const isAssistant = computed(() => route.name === 'OwnerAiAssistant')
+const orderDetailRoutes = new Set(['OwnerOrderDetail', 'WorkerOrderDetail', 'AdminOrderDetail'])
+const conciergeOrderId = computed(() =>
+  orderDetailRoutes.has(route.name) && typeof route.params.id === 'string' ? route.params.id : null
+)
 const pageTransition = ref('ios-page-switch')
 const scrollPositions = new Map()
 let previousPosition = window.history.state?.position ?? 0
@@ -179,6 +184,12 @@ function onToggle() {
         </router-view>
       </main>
     </div>
+    <ConciergePanel
+      v-if="userStore.isLoggedIn && userStore.roleCode === props.roleCode"
+      :key="props.roleCode + ':' + userStore.userId"
+      :role-code="props.roleCode"
+      :order-id="conciergeOrderId"
+    />
   </div>
 </template>
 

@@ -162,6 +162,10 @@ public interface WorkOrderService {
      */
     OrderDetailResponseVO getDetailForWorker(Long id);
 
+    OrderDetailResponseVO getAssignedDetailForWorker(Long id);
+
+    PageResult<OrderListResponseVO> pageForWorkerTodos(Long workerId, OrderQueryRequestVO requestVO);
+
     /**
      * 师傅到场签到：ACCEPTED -&gt; GOING。
      *

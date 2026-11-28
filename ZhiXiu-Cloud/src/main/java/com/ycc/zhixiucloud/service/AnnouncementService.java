@@ -35,6 +35,9 @@ public interface AnnouncementService {
      */
     PageResult<AnnouncementResponseVO> page(PageRequestVO requestVO, String roleCode);
 
+    /** 仅返回角色可见的已发布公告。 */
+    PageResult<AnnouncementResponseVO> pagePublishedForRole(PageRequestVO requestVO, String roleCode);
+
     /**
      * 查询公告详情，并在同一事务内将阅读量加 1。
      *

@@ -60,6 +60,8 @@ public final class RedisKeys {
     /** AI 会话操作锁：看门狗续期，短事务提交后释放 */
     public static final String AI_SESSION_LOCK = "lock:ai:session:";
 
+    public static final String AI_CONCIERGE_LOCK = "lock:ai:concierge:session:";
+
     /** 操作日志缓冲：List，LPUSH + BRPOP */
     public static final String OPERATION_LOG_BUFFER = "log:operation:buffer";
 
