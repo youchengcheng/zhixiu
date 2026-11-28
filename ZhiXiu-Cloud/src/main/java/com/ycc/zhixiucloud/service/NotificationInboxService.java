@@ -17,6 +17,9 @@ public interface NotificationInboxService {
     /** 查询当前登录用户的通知列表。 */
     PageResult<NotificationResponseVO> page(PageRequestVO requestVO);
 
+    /** 查询当前登录用户的通知，可限制为未读。 */
+    PageResult<NotificationResponseVO> page(PageRequestVO requestVO, boolean unreadOnly);
+
     /** 查询当前登录用户的未读数量。 */
     NotificationUnreadResponseVO unreadCount();
 

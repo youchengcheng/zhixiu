@@ -42,9 +42,9 @@ const drawerStyle = computed(() => narrow.value && viewportHeight.value
   : {})
 const choices = computed(() => {
   const roleChoice = {
-    OWNER: '查看我的工单',
+    OWNER: '哪些工单已经完成？',
     WORKER: '看看我的待办',
-    ADMIN: '有哪些待审核师傅？'
+    ADMIN: '哪些师傅手上没有工单？'
   }[props.roleCode]
   if (props.orderId) return ['这张工单到哪一步了？', '查看我的通知']
   return [roleChoice, '查看我的通知', '查看社区公告'].filter(Boolean)
@@ -191,7 +191,10 @@ function run(turn) {
   busy.value = true
   activeRun = turn
   turn.state = 'PENDING'
+  // 重试时保留同一个 requestId，清掉上一轮尝试已经渲染的内容。
   turn.answer = ''
+  turn.table = null
+  turn.link = null
   turn.error = ''
   let complete = false
   const finish = (error) => {
@@ -208,6 +211,7 @@ function run(turn) {
     requestId: turn.requestId, content: turn.content, orderId: turn.orderId
   }, {
     onEvent(event, data) {
+      // 旧请求的迟到事件不得覆盖当前回合。摘要和表格根据不同事件分别更新。
       if (activeRun !== turn) return
       if (event === 'message') turn.answer += data.delta || ''
       if (event === 'table') turn.table = data
@@ -233,8 +237,12 @@ async function loadTable(turn, page = 1) {
   turn.tableLoading = true
   turn.tableError = ''
   try {
-    turn.table = await fetchConciergeTable(selected.value, turn.id, page)
+    const table = await fetchConciergeTable(selected.value, turn.id, page)
+    // 翻页接口已按当前权限重查，使用这次返回的摘要和表格一起刷新显示。
+    turn.answer = table.summary || ''
+    turn.table = table
   } catch (error) {
+    turn.answer = ''
     turn.table = null
     turn.tableError = error.message || '查询失败，请重试'
   } finally {
@@ -333,7 +341,7 @@ function onComposerKey(event) {
           <article v-for="turn in messages" :key="turn.requestId" class="concierge-turn">
             <p class="concierge-question">{{ turn.content }}</p>
             <div class="concierge-answer">
-              <MarkdownView v-if="turn.answer && !turn.hasTable && !turn.table" :content="turn.answer" />
+              <MarkdownView v-if="turn.answer" :content="turn.answer" />
               <p v-if="turn.state === 'PENDING' && !turn.answer" class="concierge-muted" role="status">
                 {{ busy ? '正在查询…' : '这轮回复尚未完成' }}
               </p>

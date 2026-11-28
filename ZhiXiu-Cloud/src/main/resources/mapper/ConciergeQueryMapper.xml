@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ycc.zhixiucloud.mapper.ConciergeQueryMapper">
+
+    <!-- 用查询类型选择业务日期。按期完工使用确认完工时间，普通列表使用报修时间。 -->
+    <sql id="orderDate">
+        <choose>
+            <when test="scope.dateField == 'COMPLETED'">wo.completed_time</when>
+            <when test="scope.dateField == 'SUBMITTED'">wo.submitted_time</when>
+            <when test="scope.dateField == 'CLOSED'">wo.closed_time</when>
+            <otherwise>wo.create_time</otherwise>
+        </choose>
+    </sql>
+
+    <!-- 以实际接单师傅关联用户。保留师傅资料缺失的旧工单，表格姓名可显示未记录。 -->
+    <sql id="orderWorker">
+        LEFT JOIN maintenance_worker mw ON mw.id = wo.accepted_worker_id AND mw.deleted = 0
+        LEFT JOIN `user` u ON u.id = mw.user_id AND u.deleted = 0
+    </sql>
+
+    <!-- 详情、分页和分组统计共用权限及筛选条件，参数用 MyBatis 绑定。 -->
+    <sql id="orderFilters">
+        WHERE wo.deleted = 0
+        <if test="scope.ownerId != null">AND wo.owner_id = #{scope.ownerId}</if>
+        <if test="scope.workerId != null">
+            AND (wo.accepted_worker_id = #{scope.workerId}
+            <if test="!scope.mine">OR wo.assigned_worker_id = #{scope.workerId}</if>)
+        </if>
+        <if test="scope.orderId != null">AND wo.id = #{scope.orderId}</if>
+        <if test="scope.orderNo != null">AND wo.order_no = #{scope.orderNo}</if>
+        <if test="scope.workerName != null">AND u.real_name = #{scope.workerName}</if>
+        <if test="!scope.statuses.isEmpty()">
+            AND wo.status IN
+            <foreach collection="scope.statuses" item="status" open="(" separator="," close=")">
+                #{status}
+            </foreach>
+        </if>
+        <if test="scope.from != null">AND <include refid="orderDate"/> &gt;= #{scope.from}</if>
+        <if test="scope.to != null">AND <include refid="orderDate"/> &lt; #{scope.to}</if>
+    </sql>
+
+    <select id="orderRows" resultType="com.ycc.zhixiucloud.mapper.ConciergeQueryMapper$OrderRow">
+        SELECT wo.id, wo.order_no, wo.title, wo.status, <include refid="orderDate"/> AS activity_time,
+               u.real_name AS worker_name
+        FROM work_order wo
+        <include refid="orderWorker"/>
+        <include refid="orderFilters"/>
+        <!-- ID 作为同一业务时间下的排序条件，确保分页顺序稳定。 -->
+        ORDER BY activity_time DESC, wo.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="orderCounts" resultType="com.ycc.zhixiucloud.mapper.ConciergeQueryMapper$OrderCount">
+        SELECT wo.status, COUNT(*) AS total
+        FROM work_order wo
+        <if test="scope.workerName != null"><include refid="orderWorker"/></if>
+        <include refid="orderFilters"/>
+        GROUP BY wo.status
+    </select>
+
+    <select id="workerGroupCount" resultType="long">
+        <!-- COUNT DISTINCT 会忽略空师傅，存在这类工单时补计一个未记录分组。 -->
+        SELECT COUNT(DISTINCT wo.accepted_worker_id) + COALESCE(MAX(wo.accepted_worker_id IS NULL), 0)
+        FROM work_order wo
+        <if test="scope.workerName != null"><include refid="orderWorker"/></if>
+        <include refid="orderFilters"/>
+    </select>
+
+    <select id="workerGroups" resultType="com.ycc.zhixiucloud.mapper.ConciergeQueryMapper$WorkerGroup">
+        SELECT u.real_name AS worker_name, mw.worker_no, COUNT(*) AS total
+        FROM work_order wo
+        <include refid="orderWorker"/>
+        <include refid="orderFilters"/>
+        GROUP BY wo.accepted_worker_id, u.real_name, mw.worker_no
+        ORDER BY total DESC, wo.accepted_worker_id ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <sql id="workerLoads">
+        FROM maintenance_worker mw
+        JOIN `user` u ON u.id = mw.user_id AND u.deleted = 0 AND u.status = 1
+        <!-- 将待接派单先按师傅计数。没有派单的师傅在左连接中得到 NULL。 -->
+        LEFT JOIN (
+            SELECT assigned_worker_id, COUNT(*) AS pending
+            FROM work_order
+            WHERE deleted = 0 AND status = 'ASSIGNED' AND assigned_worker_id IS NOT NULL
+            GROUP BY assigned_worker_id
+        ) assigned ON assigned.assigned_worker_id = mw.id
+        WHERE mw.deleted = 0 AND mw.audit_status = #{scope.auditPassed}
+          AND mw.work_status != #{scope.disabled}
+        <!-- 在手量与待接派单分别判断，零负载与手上没有工单使用不同组合。 -->
+        <if test="scope.zeroLoad">AND mw.current_load = 0</if>
+        <if test="scope.noPending">AND assigned.pending IS NULL</if>
+        <if test="scope.workStatus != null">AND mw.work_status = #{scope.workStatus}</if>
+    </sql>
+
+    <select id="loadRows" resultType="com.ycc.zhixiucloud.mapper.ConciergeQueryMapper$LoadRow">
+        SELECT u.real_name AS work_name, mw.worker_no, mw.work_status, mw.current_load,
+               COALESCE(assigned.pending, 0) AS pending
+        <include refid="workerLoads"/>
+        ORDER BY mw.current_load DESC, mw.id ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="loadCounts" resultType="com.ycc.zhixiucloud.mapper.ConciergeQueryMapper$LoadCount">
+        SELECT mw.work_status, COUNT(*) AS total
+        <include refid="workerLoads"/>
+        GROUP BY mw.work_status
+        ORDER BY mw.work_status
+    </select>
+</mapper>

@@ -62,6 +62,11 @@ public class NotificationInboxServiceImpl implements NotificationInboxService {
 
     @Override
     public PageResult<NotificationResponseVO> page(PageRequestVO requestVO) {
+        return page(requestVO, false);
+    }
+
+    @Override
+    public PageResult<NotificationResponseVO> page(PageRequestVO requestVO, boolean unreadOnly) {
         // 接收人固定取当前登录用户，不接受前端传入用户 ID
         Long userId = SecurityUtils.currentUserId();
         // 按创建时间倒序分页查询本人的通知
@@ -69,7 +74,8 @@ public class NotificationInboxServiceImpl implements NotificationInboxService {
                 new Page<>(requestVO.getPageNum(), requestVO.getPageSize()),
                 Wrappers.<Notification>lambdaQuery()
                         .eq(Notification::getReceiverId, userId)
-                        .orderByDesc(Notification::getCreateTime));
+                        .eq(unreadOnly, Notification::getIsRead, UNREAD)
+                        .orderByDesc(Notification::getCreateTime, Notification::getId));
         // 实体转换为列表出参
         return PageResult.of(page, this::toVO);
     }

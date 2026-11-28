@@ -20,7 +20,8 @@ public final class ConciergeResponse {
         }
     }
 
-    public record Table(String title, List<String> columns, List<Row> rows, long total, int page, boolean hasMore) {
+    public record Table(String title, List<String> columns, List<Row> rows, long total, int page, boolean hasMore,
+                        String summary) {
     }
 
     public record Row(List<String> cells, String path) {

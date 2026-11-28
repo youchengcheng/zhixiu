@@ -84,6 +84,17 @@ public class ConciergeStore {
                 .stream().findFirst().orElse(null);
     }
 
+    public ConciergeQueries.Query previousQuery(long sessionId, long beforeMessageId) {
+        // 只取当前消息之前最近一次已完成的查询，排除当前重试、澄清和知识问答。
+        return jdbc.query("""
+                        SELECT query_spec FROM ai_concierge_message
+                        WHERE session_id = ? AND id < ? AND state = 'COMPLETE' AND query_spec IS NOT NULL
+                        ORDER BY id DESC LIMIT 1
+                        """, (row, index) -> decode(row.getString("query_spec"),
+                        new TypeReference<ConciergeQueries.Query>() {}), sessionId, beforeMessageId)
+                .stream().findFirst().orElse(null);
+    }
+
     public long start(long sessionId, Chat chat) {
         long id = IdWorker.getId();
         transactions.executeWithoutResult(status -> {
@@ -104,6 +115,7 @@ public class ConciergeStore {
     }
 
     public void finish(long sessionId, long id, String answer, List<CitationItem> citations, ConciergeQueries.Query query) {
+        // 查询只序列化校验后的条件。知识答复的正文与引用继续走各自字段。
         String citationsJson = citations.isEmpty() ? null : encode(citations);
         String queryJson = query == null ? null : encode(query);
         transactions.executeWithoutResult(status -> {
@@ -123,8 +135,10 @@ public class ConciergeStore {
         String query = row.getString("query_spec");
         String citations = row.getString("citations");
         List<CitationItem> items = citations == null ? List.of() : decode(citations, new TypeReference<>() {});
+        // 有 query_spec 的消息返回可重查标记，实际数据在再次鉴权后读取。
         var message = new Message(row.getLong("id"), row.getString("request_id"), row.getString("user_content"),
-                row.getObject("context_order_id", Long.class), row.getString("answer"), items, query != null,
+                row.getObject("context_order_id", Long.class), query == null ? row.getString("answer") : null,
+                items, query != null,
                 row.getString("state"), row.getObject("create_time", LocalDateTime.class), null);
         return new SavedMessage(message, query == null ? null : decode(query, new TypeReference<>() {}));
     }
